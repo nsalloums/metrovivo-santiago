@@ -1,0 +1,52 @@
+{
+  "_doc": [
+    "Operación expresa del Metro de Santiago (Ruta Roja/Verde) — CONFIG MANUAL.",
+    "El GTFS de DTPM no modela las variantes expresas (un solo patrón de paradas",
+    "por línea/sentido), así que la clasificación de estaciones va aquí.",
+    "Clases: C = común (paran ambas rutas), R = solo Ruta Roja, V = solo Ruta Verde.",
+    "Las combinaciones (transbordos) y terminales son siempre comunes.",
+    "APROXIMACIÓN a la clasificación vigente conocida (ene-2026): metro.cl no era",
+    "alcanzable desde este entorno para verificarla. Las clasificaciones cambian",
+    "con los años: contrastar con https://www.metro.cl antes de confiar en esto.",
+    "El horario expreso oficial es L-V punta mañana y punta tarde en L2, L4 y L5."
+  ],
+  "windows": {
+    "wd": [["06:00", "09:00"], ["18:00", "21:00"]],
+    "sa": [],
+    "su": []
+  },
+  "lines": {
+    "L2": {
+      "vespucio-norte": "C", "zapadores": "R", "dorsal": "V", "einstein": "R",
+      "cementerios": "V", "cerro-blanco": "R", "patronato": "V",
+      "cal-y-canto": "C", "santa-ana": "C", "los-heroes": "C",
+      "toesca": "V", "parque-ohiggins": "R", "rondizzoni": "V",
+      "franklin": "C", "el-llano": "R", "san-miguel": "V", "lo-vial": "R",
+      "departamental": "V", "ciudad-del-nino": "R", "lo-ovalle": "C",
+      "el-parron": "V", "la-cisterna": "C", "el-bosque": "R",
+      "observatorio": "V", "copa-lo-martinez": "R", "hospital-el-pino": "C"
+    },
+    "L4": {
+      "tobalaba": "C", "cristobal-colon": "R", "francisco-bilbao": "V",
+      "principe-de-gales": "R", "simon-bolivar": "V", "plaza-egana": "C",
+      "los-orientales": "R", "grecia": "V", "los-presidentes": "R",
+      "quilin": "V", "las-torres": "R", "macul": "C", "vicuna-mackenna": "C",
+      "vicente-valdes": "C", "rojas-magallanes": "V", "trinidad": "R",
+      "san-jose-de-la-estrella": "V", "los-quillayes": "R", "elisa-correa": "V",
+      "hospital-sotero-del-rio": "C", "protectora-de-la-infancia": "R",
+      "las-mercedes": "V", "plaza-de-puente-alto": "C"
+    },
+    "L5": {
+      "plaza-de-maipu": "C", "santiago-bueras": "R", "del-sol": "V",
+      "monte-tabor": "R", "las-parcelas": "V", "laguna-sur": "R",
+      "barrancas": "V", "pudahuel": "C", "san-pablo": "C", "lo-prado": "R",
+      "blanqueado": "V", "gruta-de-lourdes": "R", "quinta-normal": "C",
+      "cumming": "V", "santa-ana": "C", "plaza-de-armas": "C",
+      "bellas-artes": "C", "baquedano": "C", "parque-bustamante": "V",
+      "santa-isabel": "R", "irarrazaval": "C", "nuble": "C",
+      "rodrigo-de-araya": "V", "carlos-valdovinos": "R", "camino-agricola": "V",
+      "san-joaquin": "R", "pedrero": "V", "mirador": "C",
+      "bellavista-de-la-florida": "C", "vicente-valdes": "C"
+    }
+  }
+}

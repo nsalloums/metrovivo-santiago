@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0c" />
+  <meta name="description" content="La red del Metro de Santiago en 3D y 2D, con trenes sincronizados al horario oficial." />
+  <title>metrovivo — Metro de Santiago en 3D</title>
+
+  <!-- Tarjeta al compartir. og:image debe ser absoluta: los crawlers no
+       resuelven rutas relativas, así que no puede usar BASE_URL. -->
+  <link rel="canonical" href="https://nsalloums.github.io/metrovivo-santiago/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="metrovivo" />
+  <meta property="og:title" content="metrovivo — Metro de Santiago en 3D" />
+  <meta property="og:description" content="Las 7 líneas del Metro de Santiago en 3D y 2D, con trenes que se mueven en sincronía con el horario oficial. Entra a la cabina de cualquiera." />
+  <meta property="og:url" content="https://nsalloums.github.io/metrovivo-santiago/" />
+  <meta property="og:image" content="https://nsalloums.github.io/metrovivo-santiago/og.png" />
+  <meta property="og:image:width" content="1280" />
+  <meta property="og:image:height" content="640" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='8' y='8' width='16' height='16' rx='2' transform='rotate(45 16 16)' fill='%23E2231A'/%3E%3Crect x='12.5' y='12.5' width='7' height='7' rx='1' transform='rotate(45 16 16)' fill='%230a0a0c'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <header id="topbar" aria-label="metrovivo">
+    <div class="brand">
+      <svg class="isotipo" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="8" y="8" width="16" height="16" rx="2.5" transform="rotate(45 16 16)" fill="#E2231A"/>
+        <rect x="12.6" y="12.6" width="6.8" height="6.8" rx="1.2" transform="rotate(45 16 16)" fill="#0f0f12"/>
+      </svg>
+      <h1>metro<span>vivo</span></h1>
+    </div>
+    <div class="status">
+      <span id="estado-chip" class="estado-alerts" hidden title="Escenario de contingencia simulado">
+        <i class="dot"></i><span class="txt"></span>
+      </span>
+      <span id="train-count" title="Trenes en circulación (simulados)">0 trenes</span>
+      <span id="clock" title="Hora en Santiago de Chile">--:--:--</span>
+    </div>
+  </header>
+
+  <div id="contingencia" hidden></div>
+
+  <div id="hud">
+    <div id="badges" role="group" aria-label="Filtrar líneas"></div>
+    <div class="hud-row">
+      <button id="mode-toggle" aria-label="Cambiar entre vista 3D y plano 2D">
+        <span class="opt active" data-mode="3d">3D</span><span class="opt" data-mode="2d">2D</span>
+      </button>
+      <select id="station-select" aria-label="Elegir estación">
+        <option value="">Estación…</option>
+      </select>
+    </div>
+    <div id="time-controls" role="group" aria-label="Control de tiempo">
+      <button class="tc active" data-speed="1">×1</button>
+      <button class="tc" data-speed="10">×10</button>
+      <button class="tc" data-speed="60">×60</button>
+      <button id="live-btn" title="Volver a la hora real de Santiago">● VIVO</button>
+      <input type="range" id="hour-slider" min="0" max="86340" step="60"
+             aria-label="Hora del día (modo demo)" />
+    </div>
+  </div>
+
+  <div id="debug" hidden></div>
+
+  <div id="cab-vignette" hidden></div>
+  <div id="cab-hud" hidden>
+    <div class="cab-main">
+      <span class="cab-badge"></span>
+      <div class="cab-text">
+        <div class="cab-next"></div>
+        <div class="cab-meta"></div>
+      </div>
+      <div class="cab-speed" aria-label="Velocidad simulada"><b>0</b><small>km/h</small></div>
+    </div>
+    <button id="cab-exit">Salir ✕</button>
+  </div>
+
+  <div id="tooltip" role="tooltip" hidden>
+    <div class="tt-name"></div>
+    <div class="tt-badges"></div>
+  </div>
+
+  <aside id="led-panel" hidden aria-live="polite">
+    <div class="led-head">
+      <span class="led-title">PRÓXIMOS TRENES</span>
+      <button id="led-close" aria-label="Cerrar panel">✕</button>
+    </div>
+    <div class="led-station"></div>
+    <div class="led-rows"></div>
+    <div class="led-marquee"><span>SIMULACIÓN SEGÚN FRECUENCIAS OFICIALES · NO SON POSICIONES REALES ·&nbsp;</span></div>
+  </aside>
+
+  <div id="closed-overlay" hidden>
+    <svg class="isotipo big" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="8" y="8" width="16" height="16" rx="2.5" transform="rotate(45 16 16)" fill="#E2231A"/>
+      <rect x="12.6" y="12.6" width="6.8" height="6.8" rx="1.2" transform="rotate(45 16 16)" fill="#0f0f12"/>
+    </svg>
+    <h2>Metro cerrado</h2>
+    <p id="closed-msg">El servicio comienza a las 06:00</p>
+  </div>
+
+  <div id="disclaimer">Simulación a partir del horario oficial · No son posiciones reales ni estado del servicio en vivo.</div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

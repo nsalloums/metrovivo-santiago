@@ -1,0 +1,371 @@
+/* metrovivo — estética de señalética Metro de Santiago */
+
+:root {
+  --bg: #0a0a0c;
+  --panel: #131318;
+  --panel-2: #1a1a21;
+  --line: #26262e;
+  --text: #f4f4f6;
+  --text-dim: #9a9aa4;
+  --rojo: #e2231a;
+  --amber: #ffb000;
+  --font-sign: 'Hind', 'Fira Sans', -apple-system, 'Segoe UI', sans-serif;
+  --font-led: 'VT323', 'Courier New', monospace;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sign);
+  -webkit-font-smoothing: antialiased;
+  touch-action: none;
+}
+
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* ── Header: letrero de estación ── */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: linear-gradient(to bottom, rgba(15, 15, 19, 0.96), rgba(15, 15, 19, 0.82));
+  border-bottom: 3px solid var(--rojo);
+  backdrop-filter: blur(8px);
+  z-index: 20;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.isotipo { width: 26px; height: 26px; }
+.isotipo.big { width: 64px; height: 64px; }
+#topbar h1 {
+  font-size: 22px; font-weight: 700; letter-spacing: 0.02em; line-height: 1;
+  color: #fff;
+}
+#topbar h1 span { font-weight: 400; color: var(--text-dim); }
+.status { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+#clock {
+  font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px;
+  background: #000; border: 1px solid var(--line); border-radius: 6px;
+  padding: 3px 8px; color: var(--amber); font-family: var(--font-led); font-size: 19px;
+  letter-spacing: 0.06em; line-height: 1;
+}
+#train-count { color: var(--text-dim); font-weight: 500; white-space: nowrap; }
+
+/* ── Chip de estado real de la red ── */
+#estado-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 10px; font-size: 11.5px; font-weight: 600; color: var(--text-dim);
+  white-space: nowrap;
+}
+#estado-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+#estado-chip.estado-normal .dot { background: #35c56b; box-shadow: 0 0 6px rgba(53, 197, 107, 0.7); }
+#estado-chip.estado-alerts .dot { background: var(--amber); box-shadow: 0 0 6px rgba(255, 176, 0, 0.7); animation: blink 1.6s infinite; }
+#estado-chip.estado-off .dot { background: #666; }
+@keyframes blink { 50% { opacity: 0.35; } }
+
+/* ── Banner de contingencia (mensaje oficial, texto sanitizado) ── */
+#contingencia {
+  position: fixed; top: 54px; left: 0; right: 0; z-index: 19;
+  background: rgba(64, 44, 6, 0.94); border-bottom: 2px solid var(--amber);
+  color: #ffd88a; font-size: 12.5px; line-height: 1.35;
+  padding: 6px 14px; backdrop-filter: blur(6px);
+}
+#contingencia .cline { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+#contingencia .cline b { color: #fff; flex: 0 0 auto; }
+
+/* fila de alerta en el panel LED (como los letreros reales) */
+.led-alert {
+  font-size: 18px; line-height: 1.3; padding: 2px 0 6px;
+  color: #ffcf5e; text-shadow: 0 0 6px rgba(255, 176, 0, 0.5);
+  border-bottom: 1px dashed #4a3f1c; margin-bottom: 4px;
+}
+
+/* ── HUD inferior ── */
+#hud {
+  position: fixed; left: 0; right: 0; bottom: calc(26px + var(--safe-b));
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 0 12px; z-index: 20; pointer-events: none;
+}
+#hud > * { pointer-events: auto; }
+
+#badges { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.badge {
+  --c: #888;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--c);
+  color: #fff; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  cursor: pointer; user-select: none;
+  transition: opacity 0.2s, filter 0.2s;
+  padding: 0; font-family: var(--font-sign); line-height: 1;
+}
+.badge.off { opacity: 0.28; filter: saturate(0.2); border-color: rgba(255, 255, 255, 0.25); }
+.badge:active { transform: scale(0.92); }
+.badge.mini { width: 22px; height: 22px; font-size: 10.5px; border-width: 1.5px; box-shadow: none; cursor: default; }
+
+.hud-row { display: flex; gap: 10px; align-items: center; }
+
+#mode-toggle {
+  display: flex; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px; cursor: pointer;
+}
+#mode-toggle .opt {
+  padding: 7px 18px; border-radius: 999px; font-weight: 700; font-size: 14px;
+  color: var(--text-dim); transition: color 0.25s; position: relative; z-index: 1;
+  font-family: var(--font-sign);
+}
+#mode-toggle .opt.active { color: #fff; }
+#mode-toggle .knob {
+  position: absolute; top: 3px; bottom: 3px; border-radius: 999px;
+  background: var(--rojo); z-index: 0;
+}
+#mode-toggle { position: relative; }
+
+#station-select {
+  appearance: none; -webkit-appearance: none;
+  background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239a9aa4'/%3E%3C/svg%3E") no-repeat right 12px center;
+  border: 1px solid var(--line); border-radius: 999px;
+  color: var(--text); font-family: var(--font-sign); font-size: 14px; font-weight: 500;
+  padding: 8px 32px 8px 16px; max-width: 46vw;
+  text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
+}
+
+/* ── Control de tiempo (x1/x10/x60 + slider demo) ── */
+#time-controls {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(19, 19, 24, 0.85); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px 10px 4px 4px;
+  max-width: 94vw;
+}
+#time-controls .tc, #live-btn {
+  background: none; border: none; color: var(--text-dim);
+  font-family: var(--font-sign); font-weight: 700; font-size: 12.5px;
+  padding: 5px 9px; border-radius: 999px; cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+#time-controls .tc.active { background: var(--rojo); color: #fff; }
+#live-btn { color: #4caf50; font-size: 11px; letter-spacing: 0.04em; }
+#live-btn.off { color: var(--text-dim); }
+#hour-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 130px; height: 4px; border-radius: 2px;
+  background: var(--line); outline: none; cursor: pointer;
+}
+#hour-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--amber); border: 2px solid #0a0a0c;
+}
+#hour-slider::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--amber); border: 2px solid #0a0a0c;
+}
+
+/* ── Overlay de debug (tecla D) ── */
+#debug {
+  position: fixed; top: 62px; left: 10px; z-index: 35;
+  background: rgba(5, 5, 8, 0.88); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 12px;
+  font-family: var(--font-led); font-size: 16px; line-height: 1.45;
+  color: #7fd97f; white-space: pre; pointer-events: none;
+  letter-spacing: 0.03em;
+}
+
+/* ── Vista de conductor ── */
+#cab-vignette {
+  position: fixed; inset: 0; z-index: 15; pointer-events: none;
+  background:
+    radial-gradient(ellipse 118% 105% at 50% 46%, transparent 62%, rgba(0, 0, 0, 0.55) 88%, rgba(0, 0, 0, 0.9) 100%);
+  border: 10px solid rgba(8, 8, 10, 0.85);
+  border-top-width: 14px; border-bottom-width: 20px;
+  border-radius: 26px;
+}
+#cab-hud {
+  position: fixed; top: 62px; left: 0; right: 0; z-index: 25;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 12px 14px; pointer-events: none;
+}
+.cab-main {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(16, 16, 24, 0.88); border: 1px solid #3a3a46;
+  border-radius: 10px; padding: 8px 14px 8px 8px;
+  backdrop-filter: blur(6px);
+  max-width: 74vw;
+}
+.cab-badge {
+  --c: #888;
+  width: 34px; height: 34px; border-radius: 50%; flex: 0 0 34px;
+  background: var(--c); color: #fff; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+}
+.cab-next { font-weight: 700; font-size: 16px; line-height: 1.2; }
+.cab-next .eta { color: var(--amber); font-variant-numeric: tabular-nums; }
+.cab-meta { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.cab-speed {
+  margin-left: 12px; padding-left: 12px; border-left: 1px solid #3a3a46;
+  display: flex; flex-direction: column; align-items: center; line-height: 1;
+  min-width: 46px;
+}
+.cab-speed b {
+  font-family: var(--font-led); font-size: 30px; color: var(--amber);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.5);
+}
+.cab-speed small { font-size: 10px; color: var(--text-dim); letter-spacing: 0.06em; }
+#cab-exit {
+  pointer-events: auto;
+  background: rgba(16, 16, 24, 0.88); border: 1px solid #3a3a46;
+  color: var(--text); font-family: var(--font-sign); font-weight: 600; font-size: 13px;
+  padding: 9px 14px; border-radius: 999px; cursor: pointer;
+}
+#cab-exit:active { transform: scale(0.95); }
+
+/* ── Tooltip: placa de andén ── */
+#tooltip {
+  position: fixed; z-index: 30; pointer-events: none;
+  background: #14141c;
+  border: 1px solid #3a3a46; border-left: 5px solid var(--rojo);
+  border-radius: 6px; padding: 8px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, calc(-100% - 14px));
+  min-width: 120px;
+}
+#tooltip .tt-name { font-weight: 700; font-size: 15px; letter-spacing: 0.01em; white-space: nowrap; }
+#tooltip .tt-badges { display: flex; gap: 5px; margin-top: 6px; }
+
+/* ── Panel LED: próximos trenes ── */
+#led-panel {
+  position: fixed; z-index: 25;
+  left: 10px; right: 10px; bottom: calc(112px + var(--safe-b));
+  margin: 0 auto; max-width: 420px;
+  background: #0b0b06;
+  border: 2px solid #2e2a1a; border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), inset 0 0 60px rgba(255, 176, 0, 0.04);
+  overflow: hidden;
+  font-family: var(--font-led); color: var(--amber);
+}
+#led-panel::after {
+  /* trama punto-matriz */
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.55) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+.led-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 12px 2px;
+}
+.led-title { font-size: 17px; letter-spacing: 0.18em; opacity: 0.9; }
+#led-close {
+  background: none; border: none; color: var(--amber); opacity: 0.7;
+  font-size: 15px; cursor: pointer; padding: 4px 6px; font-family: var(--font-sign);
+  position: relative; z-index: 2;
+}
+.led-station {
+  font-size: 26px; padding: 0 12px 4px; letter-spacing: 0.04em;
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.55);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.led-rows { padding: 2px 12px 10px; display: flex; flex-direction: column; gap: 2px; min-height: 60px; }
+.led-row {
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: 21px; line-height: 1.25;
+  text-shadow: 0 0 6px rgba(255, 176, 0, 0.45);
+}
+.led-row .l-line { flex: 0 0 62px; white-space: nowrap; }
+.led-row .l-dest { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.led-row .l-eta { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.led-row.dim { opacity: 0.55; }
+.led-empty { font-size: 19px; opacity: 0.6; padding: 6px 0; }
+.led-marquee {
+  border-top: 1px solid #2e2a1a; padding: 4px 0; overflow: hidden; white-space: nowrap;
+  font-size: 16px; opacity: 0.75;
+}
+.led-marquee span { display: inline-block; padding-left: 100%; animation: marquee 18s linear infinite; }
+@keyframes marquee { to { transform: translateX(-100%); } }
+
+/* ── Metro cerrado ── */
+#closed-overlay {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgba(8, 8, 10, 0.82); backdrop-filter: blur(6px);
+  text-align: center; padding: 24px;
+}
+#closed-overlay h2 { font-size: 34px; font-weight: 700; letter-spacing: 0.02em; }
+#closed-overlay p { color: var(--text-dim); font-size: 16px; }
+
+/* ── Aviso permanente ── */
+#disclaimer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  text-align: center; font-size: 10.5px; color: #6d6d78;
+  padding: 5px 10px calc(5px + var(--safe-b));
+  background: rgba(10, 10, 12, 0.75);
+  letter-spacing: 0.02em;
+}
+
+[hidden] { display: none !important; }
+
+/* ── Operación expresa (Ruta Roja/Verde) ── */
+.xchip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; color: #fff;
+  margin-left: 2px;
+}
+.xchip-R { background: #d42317; }
+.xchip-V { background: #00953f; }
+.xchip-C { background: #3a3a46; color: #cfcfd6; }
+.xchip-cerrada { background: #5a5a64; width: auto; padding: 0 7px; font-size: 10px; letter-spacing: 0.05em; }
+#tooltip.closed .tt-name { color: #9a9aa4; text-decoration: line-through; }
+.route-tag {
+  display: inline-block; padding: 1px 7px; border-radius: 4px;
+  font-size: 11.5px; letter-spacing: 0.06em; vertical-align: 2px;
+  color: #fff; margin-right: 4px;
+}
+.route-R { background: #d42317; }
+.route-V { background: #00953f; }
+.l-pat {
+  display: inline-block; margin-left: 3px; padding: 0 4px;
+  border: 1px solid currentColor; border-radius: 3px; font-size: 15px;
+}
+.l-pat-R { color: #ff5a4d; }
+.l-pat-V { color: #35e07c; }
+.led-row.pass { opacity: 0.5; font-size: 17px; }
+
+/* ── Táctil: objetivos ≥ 44 px ── */
+@media (pointer: coarse) {
+  .badge { width: 44px; height: 44px; font-size: 17px; }
+  .badge.mini { width: 22px; height: 22px; font-size: 10.5px; } /* decorativa, no interactiva */
+  #mode-toggle .opt { padding: 12px 20px; }
+  #time-controls .tc, #live-btn { padding: 12px 12px; }
+  #hour-slider { height: 8px; }
+  #hour-slider::-webkit-slider-thumb { width: 24px; height: 24px; }
+  #hour-slider::-moz-range-thumb { width: 22px; height: 22px; }
+  #station-select { padding: 12px 34px 12px 16px; }
+  #led-close { padding: 12px 14px; }
+  #cab-exit { padding: 13px 18px; }
+}
+
+/* ── Menos movimiento: sin marquesina ni animaciones decorativas ── */
+@media (prefers-reduced-motion: reduce) {
+  .led-marquee span { animation: none; padding-left: 0; }
+}
+
+/* ── Desktop ── */
+@media (min-width: 720px) {
+  #topbar { padding: 12px 22px; }
+  #hud {
+    flex-direction: row; justify-content: center; gap: 18px;
+    bottom: calc(30px + var(--safe-b));
+  }
+  #station-select { max-width: 240px; }
+  #led-panel { left: auto; right: 22px; bottom: auto; top: 76px; width: 400px; }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "metrovivo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "La red del Metro de Santiago en 3D/2D, con trenes sincronizados al horario oficial",
+  "license": "MIT",
+  "author": "Najib Salloum",
+  "homepage": "https://nsalloums.github.io/metrovivo-santiago/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nsalloums/metrovivo-santiago.git"
+  },
+  "keywords": [
+    "metro-de-santiago",
+    "santiago-de-chile",
+    "transit-visualization",
+    "three-js",
+    "webgl",
+    "gtfs",
+    "simulation",
+    "dataviz"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "data": "node scripts/build-data.js",
+    "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "gsap": "^3.13.0",
+    "three": "^0.178.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.9"
+  }
+}

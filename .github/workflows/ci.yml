@@ -1,0 +1,28 @@
+# Validación de pull requests. El push a main lo cubre el workflow de Deploy,
+# que corre los mismos tests antes de publicar.
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests y build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # el build entra al CI porque es lo que se publica: si rompe aquí,
+      # el deploy a main también rompería
+      - run: npm run build
+        env:
+          BASE_PATH: /metrovivo-santiago/

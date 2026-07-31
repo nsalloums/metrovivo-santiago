@@ -1,0 +1,85 @@
+# Publica el sitio en GitHub Pages en cada push a main.
+#
+# Requisito único (una sola vez): Settings → Pages → Source: "GitHub Actions".
+# No hay secrets ni tokens que configurar: el deploy usa OIDC (id-token).
+#
+# El sitio es 100 % estático — sin backend ni funciones serverless — así que
+# el artefacto de dist/ es todo lo que se publica.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# una publicación a la vez; nunca se cancela un deploy en vuelo
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Resolver la ruta base del sitio
+        id: base
+        # Un repo de proyecto se sirve bajo /<repo>/; uno de usuario
+        # (<login>.github.io) y los dominios propios se sirven en la raíz.
+        run: |
+          repo="${GITHUB_REPOSITORY#*/}"
+          case "$repo" in
+            *.github.io) echo "path=/" >> "$GITHUB_OUTPUT" ;;
+            *)
+              if [ -f public/CNAME ] || [ -f CNAME ]; then
+                echo "path=/" >> "$GITHUB_OUTPUT"
+              else
+                echo "path=/$repo/" >> "$GITHUB_OUTPUT"
+              fi
+              ;;
+          esac
+
+      - run: npm ci
+      - run: npm run build
+        env:
+          BASE_PATH: ${{ steps.base.outputs.path }}
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
