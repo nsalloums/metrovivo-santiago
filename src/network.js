@@ -29,8 +29,20 @@ const STATION_Y = 120;
 // saltos de un nivel con peldaños contados en el feed — pero va multiplicada
 // por EXAGERACION para que un desnivel de cinco plantas se vea en una red de
 // 20 km. El orden es dato; la separación, escala de maqueta.
+// DOS ERRORES QUE COSTARON LA VISUALIZACIÓN, y por qué el código es así:
+//
+// 1. El relieve se dibuja HACIA ARRIBA desde el andén más profundo de la red,
+//    no hacia abajo desde la calle. Con lo segundo, una línea a nivel −2
+//    quedaba por debajo de la capa de ciudad y el suelo la tapaba entera: L1 y
+//    L6 desaparecían al 100 %, L2 y L3 al 95 %. Sobrevivían sólo las que
+//    tienen viaducto. El orden relativo entre niveles es el mismo; lo que
+//    cambia es dónde se ancla el cero.
+// 2. La exageración es modesta. La red abarca 8 niveles (−5 a +3) y los
+//    tramos entre estaciones miden 600–2.000 m: a ×26 el peor tramo (Laguna
+//    Sur→Barrancas, siete niveles en 1.080 m) daba 71 % de pendiente, y una
+//    cinta así de inclinada se ve de canto. A ×4,5 el peor queda en ~12 %.
 const NIVEL_M = 4.2;        // m por nivel (mediana medida de 291 escaleras)
-const EXAGERACION = 26;     // ×: sin esto, 5 plantas son 21 m sobre 20 km
+const EXAGERACION = 4.5;    // ×: legible sin volver las cintas un tobogán
 const NIVEL_Y = NIVEL_M * EXAGERACION;
 
 // En cabina la exageración deja de valer: a ×26 el túnel bajaría al 11 % de
@@ -48,6 +60,13 @@ export class NetworkLayer {
     this.relieve = 1;    // 0 = red plana (como era), 1 = niveles reales
     this.lines = new Map();
     this.active = new Map(); // lineId → bool (filtro)
+
+    // suelo del relieve: el andén más profundo de toda la red. Todo se dibuja
+    // hacia ARRIBA desde aquí, para que nada quede tapado por la capa de ciudad.
+    this.nivelMin = 0;
+    for (const st of Object.values(data.stations)) {
+      for (const n of Object.values(st.in?.prof || {})) this.nivelMin = Math.min(this.nivelMin, n);
+    }
 
     data.lines.forEach((line, idx) => this._buildLine(line, idx));
     this._buildStations();
@@ -134,7 +153,8 @@ export class NetworkLayer {
       while (k < sS.length - 2 && s > sS[k + 1]) k++;
       const a = sS[k], b = sS[k + 1] ?? a;
       const t = b > a ? Math.min(1, Math.max(0, (s - a) / (b - a))) : 0;
-      dy[i] = (nivel[k] + ((nivel[k + 1] ?? nivel[k]) - nivel[k]) * t) * NIVEL_Y;
+      const n = nivel[k] + ((nivel[k + 1] ?? nivel[k]) - nivel[k]) * t;
+      dy[i] = (n - this.nivelMin) * NIVEL_Y; // hacia arriba desde el más profundo
     }
     return dy;
   }
@@ -164,7 +184,7 @@ export class NetworkLayer {
     this._stationDy = ids.map((id) => {
       const p = this.data.stations[id]?.in?.prof;
       const niveles = p ? Object.values(p) : [];
-      return niveles.length ? Math.max(...niveles) * NIVEL_Y : 0;
+      return niveles.length ? (Math.max(...niveles) - this.nivelMin) * NIVEL_Y : 0;
     });
     this._stationPos = new Map(); // id → Vector3 (posición actual blendeada)
     ids.forEach((id) => this._stationPos.set(id, new THREE.Vector3()));
