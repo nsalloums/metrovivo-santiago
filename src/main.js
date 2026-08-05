@@ -89,6 +89,8 @@ const ui = new UI(data, {
 ui.setLive(clock.isLive);
 // feriados (calendar_dates.txt) y vigencia del feed (feed_info.txt)
 ui.setDatosAviso({ feriado: clock.feriado, vigencia: clock.vigencia() });
+// créditos y fuentes, visibles desde la propia demo y no sólo en el repo
+ui.initCreditos(data.calendar);
 
 // ── vista de conductor ──────────────────────────────────────────────────────
 const cabFade = { v: 1 }; // contexto y discos de estación se ocultan bajo tierra

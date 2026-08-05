@@ -3,6 +3,24 @@
 metrovivo **no está afiliado** a Metro de Santiago S.A. ni a la Dirección de
 Transporte Público Metropolitano (DTPM).
 
+Este archivo es la versión larga. La demo publica lo esencial en su propio
+interfaz — la línea "proyecto independiente · no afiliado a Metro de Santiago"
+bajo el logotipo, y el botón **i** con las fuentes, los estratos de dato y la
+licencia — porque quien llega por un enlace nunca ve este repositorio.
+
+## Sobre la licencia de los datos
+
+Consultado el 5 de agosto de 2026: **la página del GTFS de DTPM no publica
+licencia, términos de uso ni exigencia de atribución**, y tampoco lo hacen
+api.xor.cl ni velocidades.seguimos.cl. La ausencia de términos no es una
+licencia: no concede permiso, sólo deja el asunto sin declarar.
+
+Como el GTFS es dato público del Estado de Chile, la referencia razonable es la
+política de datos abiertos, que asigna licencias Creative Commons con
+atribución (CC BY / CC BY-SA). Por eso este proyecto atribuye siempre a la
+fuente, enlaza a ella e indica que el dato fue transformado — que es
+exactamente lo que esas licencias exigen — sin esperar a que nadie lo pida.
+
 - **Marcas.** "Metro", "Metro de Santiago", "Ruta Roja" y "Ruta Verde" son marcas de
   sus respectivos titulares. El logotipo oficial de Metro es marca registrada y **no
   se usa** en este proyecto: el isotipo (rombo rojo con el centro vaciado) es

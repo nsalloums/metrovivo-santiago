@@ -394,6 +394,33 @@ export class UI {
   }
 
   /**
+   * Panel de créditos: quién hizo esto, de dónde salen los datos y qué es
+   * medido frente a qué es simulado. Va en la propia demo y no sólo en el
+   * NOTICE.md del repositorio, porque quien entra al sitio nunca ve el repo.
+   * @param calendar data.calendar — la versión del feed que se está mostrando
+   */
+  initCreditos(calendar) {
+    const panel = document.getElementById('creditos');
+    const btn = document.getElementById('info-btn');
+    if (!panel || !btn) return;
+    const feed = document.getElementById('cr-feed');
+    if (feed && calendar?.version) {
+      const f = (d) => (d ? `${d.slice(6, 8)}-${d.slice(4, 6)}-${d.slice(0, 4)}` : '?');
+      feed.textContent = `feed ${calendar.version}, vigente hasta el ${f(calendar.end)}`;
+    } else if (feed) {
+      feed.textContent = 'dataset de ejemplo incluido en el repositorio';
+    }
+    const abrir = (on) => {
+      panel.hidden = !on;
+      btn.setAttribute('aria-expanded', String(on));
+      if (on) gsap.fromTo(panel, { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.25 });
+    };
+    btn.addEventListener('click', () => abrir(panel.hidden));
+    document.getElementById('creditos-close')?.addEventListener('click', () => abrir(false));
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) abrir(false); });
+  }
+
+  /**
    * Avisos sobre los DATOS, no sobre la red: hoy es feriado (y por eso los
    * trenes van con horario de domingo un viernes), o el feed que alimenta
    * todos los horarios ya venció. Ambos son cosas que el visitante no puede

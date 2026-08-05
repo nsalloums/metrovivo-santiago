@@ -33,7 +33,12 @@
         <rect x="8" y="8" width="16" height="16" rx="2.5" transform="rotate(45 16 16)" fill="#E2231A"/>
         <rect x="12.6" y="12.6" width="6.8" height="6.8" rx="1.2" transform="rotate(45 16 16)" fill="#0f0f12"/>
       </svg>
-      <h1>metro<span>vivo</span></h1>
+      <div class="brand-txt">
+        <h1>metro<span>vivo</span></h1>
+        <!-- Persistente y no escondido tras un botón: quien llega debe poder
+             saber que esto no es de Metro sin tener que buscarlo. -->
+        <small class="no-oficial">proyecto independiente · no afiliado a Metro de Santiago</small>
+      </div>
     </div>
     <div class="status">
       <span id="estado-chip" class="estado-alerts" hidden title="Escenario de contingencia simulado">
@@ -41,8 +46,50 @@
       </span>
       <span id="train-count" title="Trenes en circulación (simulados)">0 trenes</span>
       <span id="clock" title="Hora en Santiago de Chile">--:--:--</span>
+      <button id="info-btn" aria-label="Créditos, fuentes de datos y licencia"
+              aria-expanded="false" title="Créditos y fuentes de datos">i</button>
     </div>
   </header>
+
+  <aside id="creditos" hidden aria-label="Créditos y fuentes de datos">
+    <button id="creditos-close" aria-label="Cerrar">✕</button>
+    <h2>metrovivo</h2>
+    <p class="cr-lede">
+      Visualización <b>independiente</b> del transporte público de Santiago.
+      No está afiliada a Metro de Santiago S.A. ni a la Dirección de Transporte
+      Público Metropolitano (DTPM), y no es una fuente oficial.
+    </p>
+
+    <h3>De dónde salen los datos</h3>
+    <dl class="cr-fuentes">
+      <dt>Red, horarios y recorridos</dt>
+      <dd>GTFS público de <a href="https://www.dtpm.cl/index.php/noticias/gtfs-vigente" target="_blank" rel="noopener noreferrer">DTPM</a>
+        · <span id="cr-feed">—</span></dd>
+      <dt>Llegadas por paradero</dt>
+      <dd><a href="https://api.xor.cl" target="_blank" rel="noopener noreferrer">api.xor.cl</a>,
+        proyecto comunitario independiente que expone el predictor de Red Movilidad</dd>
+      <dt>Posiciones GPS de la flota</dt>
+      <dd><a href="https://velocidades.seguimos.cl" target="_blank" rel="noopener noreferrer">velocidades.seguimos.cl</a>,
+        de Ariel López y Willy Maikowski, sobre el AVL de Red Movilidad</dd>
+      <dt>Tipografías</dt>
+      <dd>Hind y VT323, bajo SIL Open Font License 1.1</dd>
+    </dl>
+
+    <h3>Qué es medido y qué es simulado</h3>
+    <ul class="cr-estratos">
+      <li><b>Trenes:</b> simulación desde el horario oficial. Metro de Santiago no
+        publica posiciones en tiempo real y este proyecto no las obtiene de ninguna parte.</li>
+      <li><b>Buses «itinerario»:</b> simulación desde las frecuencias oficiales.</li>
+      <li><b>Buses «GPS»:</b> posiciones medidas, con la edad del dato a la vista.</li>
+      <li>Nada de esto sirve para planificar un viaje.</li>
+    </ul>
+
+    <p class="cr-pie">
+      Código <a href="https://github.com/nsalloums/metrovivo-santiago" target="_blank" rel="noopener noreferrer">en GitHub</a>
+      bajo licencia MIT · marcas y atribución en
+      <a href="https://github.com/nsalloums/metrovivo-santiago/blob/main/NOTICE.md" target="_blank" rel="noopener noreferrer">NOTICE.md</a>
+    </p>
+  </aside>
 
   <div id="avisos">
     <div id="contingencia" hidden></div>
