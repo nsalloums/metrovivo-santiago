@@ -17,15 +17,21 @@ beforeAll(() => {
 // snapshot profundo: sim.update reutiliza un pool, hay que copiar para comparar
 const snap = (trains) => trains.map((t) => ({ ...t }));
 
+// La apertura sale de los datos, no de una constante: el dataset de ejemplo
+// abre a las 06:00 y el GTFS oficial a las 05:00, y el invariante que importa
+// —cerrado antes de abrir, con trenes justo después— vale para ambos.
+const opens = (day) => Math.min(...data.lines.map((l) => H(l.service[day][0])));
+
 describe('horario de servicio', () => {
-  it('a las 05:59 el metro está cerrado y no hay trenes', () => {
-    expect(sim.serviceOpen(H('05:59'), 'wd')).toBe(false);
-    expect(sim.update(H('05:59'), 'wd').length).toBe(0);
+  it('un minuto antes de abrir el metro está cerrado y no hay trenes', () => {
+    const t = opens('wd') - 60;
+    expect(sim.serviceOpen(t, 'wd')).toBe(false);
+    expect(sim.update(t, 'wd').length).toBe(0);
   });
 
-  it('a las 06:00 abre y salen los primeros trenes', () => {
-    expect(sim.serviceOpen(H('06:00'), 'wd')).toBe(true);
-    const trains = sim.update(H('06:00') + 30, 'wd');
+  it('a la hora de apertura salen los primeros trenes', () => {
+    expect(sim.serviceOpen(opens('wd'), 'wd')).toBe(true);
+    const trains = sim.update(opens('wd') + 30, 'wd');
     expect(trains.length).toBeGreaterThan(0);
   });
 
@@ -34,9 +40,10 @@ describe('horario de servicio', () => {
     expect(sim.update(H('03:00'), 'wd').length).toBe(0);
   });
 
-  it('el domingo abre a las 07:30, no antes', () => {
-    expect(sim.update(H('07:00'), 'su').length).toBe(0);
-    expect(sim.update(H('07:45'), 'su').length).toBeGreaterThan(0);
+  it('el domingo abre más tarde que en día hábil, y no antes de su hora', () => {
+    expect(opens('su')).toBeGreaterThan(opens('wd'));
+    expect(sim.update(opens('su') - 60, 'su').length).toBe(0);
+    expect(sim.update(opens('su') + 900, 'su').length).toBeGreaterThan(0);
   });
 });
 
@@ -121,6 +128,7 @@ describe('cambio de franja horaria', () => {
     for (let i = 1; i < times.length; i++) {
       expect(times[i]).toBeGreaterThan(times[i - 1]);
     }
-    expect(times[0]).toBe(H('06:00'));
+    // la primera salida es el inicio de la primera franja de la línea
+    expect(times[0]).toBe(H(L.def.freq.wd[0][0]));
   });
 });

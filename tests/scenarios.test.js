@@ -132,7 +132,10 @@ describe('la simulación obedece al escenario', () => {
     expect(times.some((t) => t >= T0 && t < T1)).toBe(false); // suprimidas
     const after = times.filter((t) => t >= T1 && t < T1 + 900);
     expect(after.length).toBeGreaterThan(0);
-    const headway = 210; // valle
+    // el headway del valle sale de los datos: 210 s en el dataset de ejemplo,
+    // 150 s en el GTFS oficial
+    const band = L.def.freq.wd.find(([a, b]) => T1 >= H(a) && T1 < H(b)) || L.def.freq.wd[0];
+    const headway = band[2];
     for (let i = 1; i < after.length; i++) {
       expect(after[i] - after[i - 1]).toBeGreaterThanOrEqual(headway - 1); // no en masa
     }

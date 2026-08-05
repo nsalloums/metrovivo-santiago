@@ -29,6 +29,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "data": "node scripts/build-data.js",
+    "gtfs": "node scripts/fetch-gtfs.mjs",
+    "data:bus": "node --max-old-space-size=6144 scripts/build-bus-data.mjs",
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs"
   },

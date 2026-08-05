@@ -174,13 +174,23 @@ try {
     chipVisible: !document.getElementById('estado-chip').hidden,
     trains: window.metrovivo.sim.trains.length,
   }));
-  const apiReqs = reqs.filter((u) => /\/api\//.test(u));
+  // Invariante real: al CARGAR, la página no habla con nadie salvo las fuentes.
+  // El filtro anterior buscaba la subcadena "/api/", que "https://api.xor.cl/
+  // red/bus-stop/PA1" esquiva (es "//api." seguido de "/red/"): el check habría
+  // quedado en verde justo cuando dejara de ser cierto. Se mira el HOST.
+  const propio = (u) => {
+    try {
+      const h = new URL(u).hostname;
+      return h === 'localhost' || h === '127.0.0.1' || /(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(h);
+    } catch { return true; } // data:, blob:, about:
+  };
+  const apiReqs = reqs.filter((u) => !propio(u));
   const realErr3 = errors3.filter((e) => !/ERR_CONNECTION|net::|fonts\.g/i.test(e));
   check('sin escenario: consola sin errores', realErr3.length === 0, realErr3.join(' | ').slice(0, 200));
   check('sin escenario: no hay chip de estado', sinEstado.scenario === null && !sinEstado.chipVisible);
   check('sin escenario: la simulación corre igual', sinEstado.trains > 0, `${sinEstado.trains} trenes`);
-  // el sitio es 100% estático: ninguna llamada a un backend inexistente
-  check('cero peticiones a /api/ (sitio estático)', apiReqs.length === 0, apiReqs.join(' | '));
+  // el sitio es 100% estático: al cargar no se consulta ningún servicio ajeno
+  check('cero peticiones a terceros al cargar (sitio estático)', apiReqs.length === 0, apiReqs.join(' | '));
 
   await browser.close();
 } catch (e) {

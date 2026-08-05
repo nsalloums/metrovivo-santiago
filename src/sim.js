@@ -217,10 +217,16 @@ export class Simulation {
       let entries = []; // [t, patId | patternObj]
       const vfreq = L.def.express?.freq;
       if (L.pat.R && vfreq) {
-        // el feed trae headways por variante: cada una con sus franjas
+        // El feed trae headways por variante: cada una con sus franjas. Roja y
+        // Verde se despachan ALTERNADAS, así que la Verde va desfasada medio
+        // headway; sin el desfase ambas arrancan en el borde de la franja y
+        // salen en el mismo segundo, superponiendo dos trenes en el terminal.
+        // (La agregación en franjas pierde la fase real de cada salida; el
+        // desfase la reconstruye, que es como opera la Ruta Expresa.)
         for (const k of ['R', 'V']) {
           for (const [a, b, h] of vfreq[k]?.[day] || []) {
-            for (let t = hhmmToSec(a); t < hhmmToSec(b); t += h) entries.push([t, k]);
+            const from = hhmmToSec(a) + (k === 'V' ? Math.floor(h / 2) : 0);
+            for (let t = from; t < hhmmToSec(b); t += h) entries.push([t, k]);
           }
         }
         for (const [a, b, h] of L.def.freq[day] || []) {

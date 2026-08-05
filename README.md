@@ -30,8 +30,10 @@ whole thing.
 > [!NOTE]
 > **These are simulated positions, not real ones.** Metro de Santiago does not
 > publish live vehicle positions, so metrovivo computes where each train *should*
-> be according to the timetable. See [Why there is no live data](#why-there-is-no-live-data)
+> be according to the timetable. See [Why there is no live data for the metro](#why-there-is-no-live-data-for-the-metro)
 > — it's the most interesting constraint in the project.
+>
+> **Buses are the exception**: those positions come from real measurements. See [Buses](#buses).
 
 ## Quick start
 
@@ -235,7 +237,11 @@ tweens, static LED marquee.
 
 </details>
 
-## Why there is no live data
+## Why there is no live data for the metro
+
+> [!TIP]
+> This section is about **trains**. Buses are a different story — RED does publish
+> live bus arrivals, and metrovivo shows them. See [Buses](#buses).
 
 An earlier version claimed to show the **real** service status — suspended lines,
 closed stations — fetched through a serverless proxy. That feature has been removed,
@@ -270,20 +276,160 @@ cruise speed, reusing the express pass-through physics.
 the `{lineas: [...]}` array shape the old parser expected. `Simulation.applyEstado()`
 already accepts the normalised form, so nothing else would change.
 
+## Buses
+
+Press **BUSES** and the city switches layers: the metro's ribbons disappear (station
+dots stay as urban reference), and the **entire RED fleet** appears over the official
+route network. Two sources, one toggle:
+
+- **ITINERARIO** (default) — ~3,500 amber buses in **continuous motion**, each one a
+  deterministic function of the official time: departures from `frequencies.txt`
+  headway windows, position interpolated between the per-stop passing times of
+  `stop_times.txt`. The speed profile between stops comes from the timetable itself —
+  the median simulated bus moves at ~18 km/h, the real commercial speed. This is the
+  same epistemic class as metrovivo's trains: where each bus *should* be.
+- **GPS** — ~4,200 cyan buses as **measured positions**, one ~100 KB request per
+  minute. Each bus carries its own measurement timestamp and that age is drawn, not
+  hidden: fresh glows cyan, five-minutes-old fades to grey. Nothing is animated between
+  measurements — an honest jump is worth more than an invented glide.
+
+The two strata never share a colour: **amber = simulated, cyan = measured**, and the
+info card on any clicked bus says which one it is (simulated buses have no plate —
+there is no vehicle).
+
+**Click a simulated bus and you ride it**, the same one-click gesture that puts you in
+a train cab. The maquette (34 m bus markers, route network floating overhead) switches
+off and a street is built at real scale: roadway, kerbs, a dashed centre line every
+12 m and street lights every 30 m — at RED's real commercial speed of ~19 km/h that
+optical flow is what makes the speed legible. Every stop of the route carries its
+**official GTFS name** on a sign, and the HUD counts down to the next one. The destination
+comes from the trip's own **headsign** (`trip_headsign`) — the bus reads “to Peñalolen”,
+what it actually displays, not “Avenida Lo Blanco / esq. J. Edwards Bello”, which is
+merely the corner where it stops. The feed's 112 circular routes are marked as such. Other buses
+pass at true size (12 m). Riding is offered only on the ITINERARIO stratum: a
+GPS-measured bus is a ~33 s old photograph, and travelling inside one would mean
+inventing the motion between fixes — exactly what the rest of the project refuses to
+do. Escape, or the exit button, flies you back to the orbit.
+
+Click any stop and you get **real arrivals**: plate, metres away and arrival window,
+straight from RED. Pick one bus and it appears on its official route, and metrovivo
+follows it — when it stops being visible from that stop, it asks the *next stop on the
+route* about the same plate, and the trip continues. Every leg is confirmed by a
+measurement, not by a clock.
+
+This is the one layer of metrovivo showing data that is **not** simulated, so it is worth
+being exact about what is measured and what is inferred.
+
+**Two sources, two regimes.**
+
+- *Fleet* — `velocidades.seguimos.cl` serves the whole fleet's AVL (GPS position, plate,
+  per-bus timestamp) with open CORS in a single ~100 KB (brotli) response. Measured:
+  each bus reports roughly once a minute (73 % of timestamps renew between snapshots
+  70 s apart), so metrovivo polls **once per minute**, only while the mode is on and the
+  tab is visible. It is a community feed with no published terms and no guarantee of
+  continuity — if it dies, the fleet mode says so and nothing else depends on it.
+- *Stop arrivals* — `https://api.xor.cl/red/bus-stop/{code}` sends
+  `access-control-allow-origin: *`, so a static site can read it with no proxy. It only
+  answers if you already know the stop code, and publishes no listing — the catalogue
+  comes from the GTFS, whose **`stop_id` *is* that code**. Measured over the whole
+  catalogue: 97 % of stops answer `status_code 0`. A city-wide sweep of this API would
+  be both abusive (it is one person's project) and a lie: it returns only the next ~2
+  buses per stop, a *sample* that would masquerade as a fleet. That is exactly what the
+  fleet feed is for.
+
+**What `meters_distance` is.** Distance to the stop **along the route**, not as the crow
+flies. Verified by tracking 67 plates for 12 minutes: every one decreases monotonically,
+at 6–25 km/h — the commercial speed of an urban bus. The backend refreshes every **33 s**
+(median; p90 34 s).
+
+**What is real and what is not:**
+
+| | |
+|---|---|
+| Plate, metres, arrival window | **Measured.** Comes from RED, shown as received. |
+| The route drawn on the map | **Official.** DTPM geometry. Checked against real GPS positions: they fall on the attributed route with a **median of 3 m**, 72 of 73 within 60 m. Direction is resolved from the (stop, service) pair, unique in 99.5 % of cases. |
+| The bus's position along that route | **Inferred, and the weakest link.** It is `arc(stop) − metres`. Against live GPS ground truth it beats the null hypothesis ("the bus is at the stop") in 85 % of cases — median 653 m of error versus 3,874 m — and it sits *ahead* of the GPS fix in 93 % of cases, which is the right sign, since the API reading is fresher than the AVL feed. But the reference itself lags by a median of 121 s, so **the position cannot be validated to better than a few hundred metres.** |
+
+That last row is why **the bus is drawn blurrier than the simulated train** — the opposite
+of the intuitive choice. The train is a clean mathematical fiction, so it gets a crisp
+capsule. The bus is a dirty measurement, so it gets a smear: an uncertainty band along the
+route covering how far it could have travelled since it was measured, which grows on its
+own between readings and *jumps* when a new one arrives. The jump is honest. We do not
+know where it went; we know where it was and where it is now.
+
+`src/bus/placement.js` is a pure function and **abstains** rather than guessing: unknown
+service (`413c` is live in the API and absent from `routes.txt`), a stop serving both
+directions, a bus before the start of the variant we hold, or two stops that disagree by
+more than 250 m about where it is. None of those branches is filled in "just in case" —
+a plausible wrong dot is worse than no dot.
+
+**Rate limiting is in the transport, not the callers.** `src/bus/xor-client.js` is the only
+file in the project allowed to call `fetch`. api.xor.cl is one person's GPL-3.0 project and
+every request of ours hits red.cl/SMSBus behind it; a static site has no shared cache, so
+N visitors are N× the traffic. Token bucket, a 20 s floor per stop, a hard session cap,
+a circuit breaker, and **zero requests while the tab is hidden**. Polling is on demand —
+the open stop, plus one stop ahead while you follow a bus. Never a city-wide sweep, which
+would also be a lie: the API returns only the next ~2 buses per stop, so that map would be
+a *sample* presented as a fleet.
+
+**Plates** appear only on the bus you explicitly follow. A plate is painted on the outside
+of the bus and it is what makes the tracking *verifiable* — you can look at the bus and
+check that metrovivo is not lying. But plate + position + time sustained over a period
+describes the working day of a person identifiable by anyone who knows the shift, so:
+never in lists, never in `localStorage`, never in the URL, and **no punctuality, speed or
+driving-behaviour metrics derived from this data**. That is the use that turns it into
+workplace surveillance with a dataviz skin.
+
+The layer is gated behind `data.meta.source !== 'sample'`: metre-accurate stops on top of
+approximate station coordinates would misalign in a way a visitor cannot diagnose.
+
 ## Data
 
-`scripts/build-data.js` generates `data/network.json` (93 KB): sampled line curves,
-both positions per station, and headways by time band and day type.
+Everything is generated from the **official DTPM GTFS feed**:
 
-- **With official GTFS** — download the current feed from
-  [dtpm.cl](https://www.dtpm.cl/index.php/documentos/gtfs-vigente), unzip it and run
-  `node scripts/build-data.js path/to/gtfs`. The script filters `route_type = 1`, takes
-  the representative trip per route, derives headways from `frequencies.txt` +
-  `calendar.txt` and maps the schematic layout by station name.
-- **Without GTFS** — a bundled sample dataset is used: the 7 real lines (L1–L6 and L4A,
-  126 stations) with approximate coordinates (±300 m) and headways within published
-  ranges. This is what the live demo runs on, and it has not yet been validated against
-  a production GTFS feed.
+```bash
+npm run gtfs          # discovers and downloads the current feed
+npm run data .cache/gtfs/<version>       # -> data/network.json  (metro)
+npm run data:bus .cache/gtfs/<version>   # -> data/bus/*.json    (buses)
+```
+
+`scripts/fetch-gtfs.mjs` scrapes `dtpm.cl/index.php/noticias/gtfs-vigente` for the
+current dated `.zip`, extracts it (no npm dependencies — it reads the ZIP with `zlib`)
+and records provenance in `data/.gtfs-provenance.json`. It has two guards that are not
+optional, because the failure mode in this domain is not a 404 — it is a 200 with rotten
+data:
+
+1. It **rejects `dtpm.cl/descargas/gtfs/GTFS.zip`** (the undated one). That URL answers
+   200 with 6 MB of perfectly well-formed GTFS whose `feed_end_date` was **20201231**.
+   It is the URL still published by Mobility Database and most tutorials.
+2. It **aborts if `feed_end_date` has passed**. An expired feed keeps looking valid and
+   silently contains stops that no longer exist.
+
+`data/network.json` (98 KB) holds sampled line curves, both positions per station, each
+station's source `lon/lat`, and headways by time band and day type. `data/bus/` holds
+the stop catalogue and route geometry — see [Buses](#buses).
+
+<details>
+<summary><b>What validating against a production feed actually changed</b></summary>
+
+<br>
+
+The GTFS path had never been run against a real feed. Doing it surfaced four bugs, all
+of the same family — code that degraded silently instead of failing:
+
+| | |
+|---|---|
+| **Headways came from the sample dataset** | Metro trips are scheduled explicitly in `stop_times.txt`; **not one of the 10,438 L1–L6 trips appears in `frequencies.txt`**. `bandsFor()` returned empty and the build fell back to the bundled sample — for the single quantity the whole project is about — while labelling itself `meta.source: "gtfs"`. Headways are now derived from actual departures. |
+| **Express service was invented on L1, L3 and L6** | The old heuristic took the 2nd and 3rd longest stop patterns as Ruta Roja/Verde. A real feed has many patterns per line and most are short-turns: L1 has 6, L3 has 15, L6 has 7, and **none of them skips a single interior station**. Ruta Expresa = same terminals + skips interior stops; it now matches reality (L2, L4, L5 only). |
+| **Weekday headways were halved** | Metro schedules `LJ` (Mon–Thu) and `V` (Friday) as separate calendars, both mapping to `wd`. Summing them put L1 at 1 min at peak instead of ~2. |
+| **Six central stations fell out of the diagram** | The project's id vocabulary predates the feed and abbreviates (`u-de-chile` vs `universidad-de-chile`). They were being placed by interpolation. |
+
+The sample dataset's coordinates turned out to be off by a **median of 636 m** and up to
+**4.1 km** (Pudahuel) — not the ±300 m previously claimed. `tests/units.test.js` was
+measuring that drift rather than the projection; it now compares against each station's
+own `ll`, and the projection's real error is **0.01–0.58 %**.
+
+</details>
 
 ## Deployment
 
@@ -296,8 +442,9 @@ deploys to its own URL with no edits.
 ## Contributing
 
 Issues and pull requests are welcome. Run `npm test` and `npm run smoke` before opening
-one. The most useful contributions right now: validating the build against a production
-GTFS feed, and verifying the Ruta Roja/Verde classification in `express-config.json`
+one. The most useful contributions right now: widening the bus layer's ground-truth
+validation (see [Buses](#buses) — the along-route position is the weakest link), and
+verifying the Ruta Roja/Verde classification in `express-config.json`
 against current metro.cl information.
 
 ## License

@@ -4,7 +4,6 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { STATIONS } from '../scripts/sample-data.mjs';
 
 const data = JSON.parse(readFileSync(new URL('../data/network.json', import.meta.url), 'utf8'));
 
@@ -30,8 +29,13 @@ const PAIRS = [
 ];
 
 describe('escala: 1 unidad = 1 metro', () => {
+  // El haversine se calcula con las MISMAS lat/lon que generaron la escena
+  // (station.ll), no con las del dataset de ejemplo: así el test mide el error
+  // de la proyección y no el de una tabla de coordenadas paralela. Con las del
+  // ejemplo el error aparente llegaba al 12,6 %, que era desviación del dato
+  // de origen (~640 m de mediana), no de la proyección.
   it.each(PAIRS)('distancia %s ↔ %s: proyección vs haversine < 2%', (a, b) => {
-    const hav = haversine(STATIONS[a].ll, STATIONS[b].ll);
+    const hav = haversine(data.stations[a].ll, data.stations[b].ll);
     const scene = euclid(data.stations[a].geo, data.stations[b].geo);
     const err = Math.abs(scene - hav) / hav;
     expect(err, `haversine ${hav.toFixed(0)} m vs escena ${scene.toFixed(0)} m`).toBeLessThan(0.02);

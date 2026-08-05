@@ -1,0 +1,92 @@
+{
+ "id": "PA1",
+ "name": "PARADA 6 / (M) QUINTA NORMAL",
+ "status_code": 0,
+ "status_description": "Itinerario obtenido satisfactoriamente",
+ "services": [
+  {
+   "id": "J01",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "507",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "B26",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "B28",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "513",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "J16",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "109",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "406",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "422",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "505",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "508",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "J02",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "J05",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  },
+  {
+   "id": "426",
+   "valid": false,
+   "status_description": "No hay buses que se dirijan al paradero",
+   "buses": []
+  }
+ ]
+}

@@ -44,7 +44,10 @@
     </div>
   </header>
 
-  <div id="contingencia" hidden></div>
+  <div id="avisos">
+    <div id="contingencia" hidden></div>
+    <div id="datos-aviso" hidden></div>
+  </div>
 
   <div id="hud">
     <div id="badges" role="group" aria-label="Filtrar líneas"></div>
@@ -55,6 +58,17 @@
       <select id="station-select" aria-label="Elegir estación">
         <option value="">Estación…</option>
       </select>
+    </div>
+    <div class="hud-row">
+      <button id="bus-toggle" aria-pressed="false"
+              title="Toda la flota de RED sobre la red de recorridos">
+        <span class="bus-dot" aria-hidden="true"></span>BUSES
+      </button>
+      <button id="bus-source" hidden
+              title="Itinerario: horario oficial en movimiento continuo — toca un bus para viajar dentro · GPS: posiciones medidas que envejecen">
+        <span class="opt active" data-src="sim">ITINERARIO</span><span class="opt" data-src="avl">GPS</span>
+      </button>
+      <span id="bus-count" aria-live="polite"></span>
     </div>
     <div id="time-controls" role="group" aria-label="Control de tiempo">
       <button class="tc active" data-speed="1">×1</button>
@@ -93,8 +107,12 @@
     </div>
     <div class="led-station"></div>
     <div class="led-rows"></div>
+    <div class="led-interior" hidden></div>
     <div class="led-marquee"><span>SIMULACIÓN SEGÚN FRECUENCIAS OFICIALES · NO SON POSICIONES REALES ·&nbsp;</span></div>
   </aside>
+
+  <aside id="bus-panel" hidden aria-live="polite"></aside>
+  <div id="bus-info" hidden aria-live="polite"></div>
 
   <div id="closed-overlay" hidden>
     <svg class="isotipo big" viewBox="0 0 32 32" aria-hidden="true">
@@ -103,9 +121,18 @@
     </svg>
     <h2>Metro cerrado</h2>
     <p id="closed-msg">El servicio comienza a las 06:00</p>
+    <!-- el metro duerme, la ciudad no: salida directa al modo buses -->
+    <button id="closed-to-buses" type="button">
+      <span class="bus-dot" aria-hidden="true"></span>La ciudad sigue despierta — ver los buses en vivo
+    </button>
   </div>
 
-  <div id="disclaimer">Simulación a partir del horario oficial · No son posiciones reales ni estado del servicio en vivo.</div>
+  <!-- El aviso es POR CAPA, no global. Con los buses encendidos hay dos
+       estratos de dato en pantalla: los trenes son simulados y los buses son
+       mediciones reales. Una sola frase afirmando "no son posiciones reales"
+       sobre toda la pantalla sería falsa para media, y un aviso falso es peor
+       que ninguno. El panel de paradero lleva el suyo. -->
+  <div id="disclaimer">Los trenes de Metro son una simulación del horario oficial · No son posiciones reales.</div>
 
   <script type="module" src="/src/main.js"></script>
 </body>

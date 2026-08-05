@@ -3,3 +3,9 @@ dist/
 .DS_Store
 *.log
 data/gtfs/
+
+# GTFS descargado por scripts/fetch-gtfs.mjs (10 MB comprimido, 66 MB suelto)
+.cache/
+
+# config local del servidor de preview (herramienta, no proyecto)
+.claude/

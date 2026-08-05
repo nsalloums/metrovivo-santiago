@@ -1,0 +1,10 @@
+{
+  "feed_version": "V166.20260704",
+  "valid_from": "20260704",
+  "valid_until": "20261231",
+  "source_url": "https://www.dtpm.cl/descargas/gtfs/GTFS_20260704.zip",
+  "zip_bytes": 10747530,
+  "last_modified": null,
+  "sha256": "acc7705c77f5bf49eda13af9805b9dd8a417777f5d4aba3bb8b6b44bbc622cba",
+  "fetched_at": "2026-08-04T03:38:27.235Z"
+}

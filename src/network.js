@@ -231,6 +231,26 @@ export class NetworkLayer {
     this.dots.instanceColor.needsUpdate = true;
   }
 
+  /**
+   * Muestra u oculta las CINTAS de línea sin tocar las estaciones. En modo
+   * buses las líneas del metro desaparecen del todo (dos redes superpuestas
+   * no se leen); los discos de estación se quedan como referencia urbana.
+   */
+  setRibbonsVisible(on) {
+    for (const L of this.lines.values()) L.mesh.visible = on;
+  }
+
+  /**
+   * Atenúa los discos de estación (el modo buses manda el metro al fondo).
+   * Separado de setGlobalDim porque éste sólo gobierna las cintas.
+   */
+  dimStations(k) {
+    for (const m of [this.dots.material, this.rings.material]) {
+      m.transparent = k < 1;
+      m.opacity = k;
+    }
+  }
+
   /** Atenuación global de cintas (la cabina baja el brillo del piso). */
   setGlobalDim(k) {
     this._dim = k;

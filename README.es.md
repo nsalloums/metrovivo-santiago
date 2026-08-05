@@ -30,7 +30,7 @@ dibuja todo.
 > [!NOTE]
 > **Son posiciones simuladas, no reales.** Metro de Santiago no publica posiciones de
 > vehículos en vivo, así que metrovivo calcula dónde *debería* estar cada tren según el
-> horario. Ver [Por qué no hay datos en vivo](#por-qué-no-hay-datos-en-vivo) — es la
+> horario. Ver [Por qué no hay datos en vivo del metro](#por-qué-no-hay-datos-en-vivo-del-metro) — es la
 > restricción más interesante del proyecto.
 
 ## Partir rápido
@@ -237,7 +237,11 @@ acortados y marquesina LED estática.
 
 </details>
 
-## Por qué no hay datos en vivo
+## Por qué no hay datos en vivo del metro
+
+> [!TIP]
+> Esta sección habla de **trenes**. Con los buses la historia es otra — RED sí publica
+> llegadas en vivo, y metrovivo las muestra. Ver [Buses](#buses).
 
 Una versión anterior decía mostrar el estado **real** del servicio — líneas suspendidas,
 estaciones cerradas — a través de un proxy serverless. Esa funcionalidad se eliminó, y
@@ -272,20 +276,203 @@ metro.cl (sirve cualquier runtime) y un normalizador para su esquema real, que e
 no el arreglo `{lineas: [...]}` que esperaba el parser antiguo. `Simulation.applyEstado()`
 ya acepta la forma normalizada, así que nada más cambiaría.
 
+## Buses
+
+Aprieta **BUSES** y la ciudad cambia de capa: las cintas del metro desaparecen (los
+discos de estación quedan como referencia urbana) y aparece **toda la flota de RED**
+sobre la red oficial de recorridos. Dos fuentes, un interruptor:
+
+- **ITINERARIO** (por defecto) — ~3.500 buses ámbar en **movimiento continuo**, cada
+  uno una función determinista de la hora oficial: salidas desde las ventanas de
+  intervalo de `frequencies.txt`, posición interpolada entre las horas de paso por
+  paradero de `stop_times.txt`. El perfil de velocidad entre paraderos sale del propio
+  itinerario — el bus simulado mediano va a ~18 km/h, la velocidad comercial real. Es
+  la misma clase de dato que los trenes de metrovivo: dónde DEBERÍA estar cada bus.
+- **GPS** — ~4.200 buses cian como **posiciones medidas**, una petición de ~100 KB por
+  minuto. Cada bus lleva su propia hora de medición y esa edad se dibuja en vez de
+  taparse: lo fresco brilla cian, lo de hace cinco minutos se apaga a gris. Nada se
+  anima entre mediciones — un salto honesto vale más que un deslizar inventado.
+
+Los dos estratos jamás comparten color: **ámbar = simulado, cian = medido**, y la
+tarjeta de cualquier bus dice cuál es (los simulados no tienen patente — no hay
+vehículo).
+
+**Toca un bus simulado y viajas dentro**, el mismo gesto de un clic que te mete a la
+cabina de un tren. La maqueta (marcadores de 34 m, la red flotando arriba) se apaga y
+se levanta una calle a escala real: calzada, soleras, eje segmentado cada 12 m y
+luminarias cada 30 m — a los ~19 km/h de velocidad comercial real de RED, ese flujo
+óptico es lo que hace legible la velocidad. Cada paradero del recorrido lleva su
+**nombre oficial del GTFS** en el letrero, y el HUD cuenta hacia el siguiente. El destino
+sale del **letrero del viaje** (`trip_headsign`): el bus dice «a Peñalolen», que es lo
+que lleva puesto, y no «Avenida Lo Blanco / esq. J. Edwards Bello», que es sólo la
+esquina donde termina. Los 112 recorridos circulares del feed se marcan como tales. Los
+otros buses pasan a tamaño real (12 m). Viajar sólo se ofrece en el estrato
+ITINERARIO: un bus medido por GPS es una foto de hace ~33 s, y meterse dentro
+exigiría inventar el movimiento entre medición y medición — justo lo que el resto del
+proyecto se niega a hacer. Con Escape, o el botón de salida, vuelves volando a la
+órbita.
+
+Al tocar un paradero aparecen **llegadas reales**: patente, metros de distancia y
+ventana de llegada, tal como las entrega RED. Eliges un bus y se dibuja sobre su
+recorrido oficial, y metrovivo lo sigue — cuando deja de verse desde ese paradero, le
+pregunta al *siguiente paradero del recorrido* por la misma patente y el viaje continúa.
+Cada tramo queda confirmado por una medición, no por un reloj.
+
+Es la única capa de metrovivo con datos que **no** son simulados, así que conviene ser
+exacto sobre qué está medido y qué está inferido.
+
+**Dos fuentes, dos regímenes.**
+
+- *Flota* — `velocidades.seguimos.cl` entrega el AVL de la flota completa (posición GPS,
+  patente y timestamp POR BUS) con CORS abierto en una sola respuesta de ~100 KB
+  (brotli). Medido: cada bus reporta más o menos cada minuto (el 73 % de los timestamps
+  se renueva entre fotos a 70 s), así que metrovivo sondea **una vez por minuto**, solo
+  con el modo encendido y la pestaña visible. Es un feed comunitario sin términos
+  publicados ni garantía de continuidad — si muere, el modo flota lo dice y nada más
+  depende de él.
+- *Llegadas por paradero* — `https://api.xor.cl/red/bus-stop/{código}` envía
+  `access-control-allow-origin: *`, o sea que un sitio estático puede leerla sin proxy.
+  Solo responde si ya conoces el código del paradero y no publica ningún listado — el
+  catálogo sale del GTFS, cuyo **`stop_id` *es* ese código**. Medido sobre el catálogo
+  completo: el 97 % responde `status_code 0`. Un barrido de la ciudad con esta API sería
+  abusivo (es el proyecto de una persona) y además mentira: entrega solo los ~2 buses
+  siguientes por paradero — una *muestra* disfrazada de flota. Para eso existe el feed
+  de flota.
+
+**Qué es `meters_distance`.** Distancia al paradero **sobre el recorrido**, no en línea
+recta. Verificado siguiendo 67 patentes durante 12 minutos: todas decrecen de forma
+monótona, a 6–25 km/h — la velocidad comercial de un bus urbano. El backend refresca cada
+**33 s** (mediana; p90 34 s).
+
+**Qué es real y qué no:**
+
+| | |
+|---|---|
+| Patente, metros, ventana de llegada | **Medido.** Viene de RED y se muestra tal cual. |
+| El recorrido dibujado | **Oficial.** Geometría del DTPM. Contrastado con posiciones GPS reales: caen sobre el recorrido atribuido con **mediana de 3 m**, 72 de 73 bajo 60 m. El sentido se deduce del par (paradero, servicio), único en el 99,5 % de los casos. |
+| La posición del bus sobre ese recorrido | **Inferida, y es el eslabón débil.** Es `arco(paradero) − metros`. Contra GPS real le gana a la hipótesis nula (el bus está en el paradero) en el 85 % de los casos — mediana de 653 m de error contra 3.874 m — y queda *por delante* del GPS en el 93 %, que es el signo correcto porque el dato de la API es más fresco que el AVL. Pero la referencia misma tiene 121 s de retraso mediano, así que **la posición no se puede validar mejor que a varios cientos de metros.** |
+
+Esa última fila es la razón de que **el bus se dibuje más borroso que el tren simulado**,
+al revés de lo que uno esperaría. El tren es una ficción matemática limpia y por eso lleva
+una cápsula nítida. El bus es una medición sucia y lleva una mancha: una banda de
+incertidumbre sobre el recorrido que cubre lo que pudo avanzar desde que se midió, crece
+sola entre lecturas y *salta* cuando llega una nueva. El salto es honesto: no sabemos por
+dónde pasó, sabemos dónde estaba y dónde está.
+
+`src/bus/placement.js` es una función pura y **se abstiene** en vez de adivinar: servicio
+desconocido (`413c` está vivo en la API y no existe en `routes.txt`), paradero que sirve
+los dos sentidos, bus antes del inicio de la variante que tenemos, o dos paraderos que
+discrepan más de 250 m sobre dónde está. Ninguna de esas ramas se rellena por si acaso:
+un punto plausible y equivocado es peor que ningún punto.
+
+**La política de tasa vive en el transporte, no en quien llama.** `src/bus/xor-client.js`
+es el único archivo del proyecto autorizado a llamar `fetch`. api.xor.cl es el proyecto
+GPL-3.0 de una persona y cada petición nuestra golpea a red.cl/SMSBus por detrás; un sitio
+estático no tiene caché compartida, así que N visitantes son N× el tráfico. Cubo de
+fichas, piso de 20 s por paradero, tope duro de sesión, circuit breaker y **cero peticiones
+con la pestaña oculta**. El sondeo es bajo demanda — el paradero abierto, más uno por
+delante mientras sigues un bus. Nunca un barrido de la ciudad, que además sería mentira:
+la API entrega solo los ~2 buses siguientes por paradero, o sea que ese mapa sería una
+*muestra* presentada como flota.
+
+**Las patentes** solo aparecen en el bus que eliges seguir. Va pintada en el exterior del
+bus y es lo que vuelve *verificable* el seguimiento — puedes mirar el bus y comprobar que
+metrovivo no miente. Pero patente + posición + hora sostenidas en el tiempo describen la
+jornada de una persona identificable por quien conoce el turno, así que: nunca en listas,
+nunca en `localStorage`, nunca en la URL, y **ninguna métrica de puntualidad, velocidad o
+conducción derivada de estos datos**. Ese es el uso que lo convierte en vigilancia laboral
+con estética de dataviz.
+
+La capa está tras una puerta dura `data.meta.source !== 'sample'`: paraderos de precisión
+métrica sobre estaciones aproximadas se desalinean de un modo que el visitante no puede
+diagnosticar.
+
 ## Datos
 
-`scripts/build-data.js` genera `data/network.json` (93 KB): curvas de línea muestreadas,
-ambas posiciones por estación y frecuencias por franja horaria y tipo de día.
+Todo se genera desde el **GTFS oficial del DTPM**:
 
-- **Con GTFS oficial** — descarga el feed vigente desde
-  [dtpm.cl](https://www.dtpm.cl/index.php/documentos/gtfs-vigente), descomprímelo y corre
-  `node scripts/build-data.js ruta/al/gtfs`. El script filtra `route_type = 1`, toma el
-  viaje representativo por ruta, deriva frecuencias de `frequencies.txt` + `calendar.txt`
-  y asigna el layout esquemático por nombre de estación.
-- **Sin GTFS** — se usa el dataset de ejemplo incluido: las 7 líneas reales (L1–L6 y L4A,
-  126 estaciones) con coordenadas aproximadas (±300 m) y frecuencias dentro de los rangos
-  publicados. Es lo que corre la demo, y todavía no ha sido validado contra un feed GTFS
-  de producción.
+```bash
+npm run gtfs          # descubre y descarga el feed vigente
+npm run data .cache/gtfs/<version>       # -> data/network.json  (metro)
+npm run data:bus .cache/gtfs/<version>   # -> data/bus/*.json    (buses)
+```
+
+`scripts/fetch-gtfs.mjs` busca el `.zip` fechado vigente en
+`dtpm.cl/index.php/noticias/gtfs-vigente`, lo descomprime (sin dependencias npm: lee el
+ZIP con `zlib`) y anota la procedencia en `data/.gtfs-provenance.json`. Tiene dos guardias
+que no son opcionales, porque el modo de fallo de este dominio no es el 404 sino el 200
+con datos podridos:
+
+1. **Rechaza `dtpm.cl/descargas/gtfs/GTFS.zip`** (el sin fecha). Esa URL responde 200 con
+   6 MB de GTFS perfectamente bien formado cuyo `feed_end_date` fue **20201231**. Es la
+   que siguen publicando Mobility Database y casi todos los tutoriales.
+2. **Aborta si `feed_end_date` ya pasó.** Un feed vencido sigue pareciendo válido y
+   contiene en silencio paraderos que ya no existen.
+
+`data/network.json` (110 KB) guarda las curvas muestreadas, ambas posiciones por
+estación, el `lon/lat` de origen de cada una, frecuencias por franja y tipo de día, el
+calendario del feed y el interior de cada estación. `data/bus/` guarda el catálogo de
+paraderos y la geometría de recorridos — ver [Buses](#buses).
+
+### El tipo de día no es el día de la semana
+
+`calendar_dates.txt` declara los ocho feriados del feed, y en todos ellos la red opera con
+**horario de domingo**. El 18 de septiembre de 2026 cae viernes: sin esa tabla, metrovivo
+dibujaba **110 trenes y 3.579 buses** sobre una ciudad que ese día mueve **68 trenes y
+2.430 buses**. El reloj consulta la tabla antes de decidir el tipo de día, y cuando hay
+feriado la interfaz lo dice — si no, un viernes con frecuencia de domingo parece una
+falla del simulador.
+
+`feed_info.txt` aporta la otra mitad: hasta cuándo valen estos horarios. `fetch-gtfs.mjs`
+ya se niega a descargar un feed vencido, pero eso no protege a un sitio ya publicado, cuyos
+datos envejecen solos. Ahora la ventana de validez viaja dentro de `network.json` y la
+página avisa cuando la fecha de hoy queda fuera. Un feed vencido no falla: sigue
+produciendo trenes perfectamente creíbles.
+
+### La estación por dentro
+
+`pathways.txt` es el grafo caminable de cada estación — 7.388 tramos con su tiempo de
+recorrido declarado — y `levels.txt` sus niveles. Con ellos, **cuánto se tarda en
+combinar** deja de ser una suposición: es la suma de los `traversal_time` del camino más
+corto entre los andenes de una línea y los de la otra. Las 17 combinaciones de la red
+están medidas, de los **22 s de Los Héroes** (L1↔L2) a los **2:41 de Plaza de Armas**
+(L3↔L5, con L3 cuatro niveles bajo la calle).
+
+El puente entre ambas cosas no es obvio y vale la pena anotarlo: los andenes que usan los
+`stop_times` (`LH_L1_V1`) **no son nodos del grafo**; los nodos son zonas y equipos
+(`LH:ZP_04`, `LH:ESC01_BOT`). La unión la hace el propio GTFS — las **zonas de embarque**
+(`location_type=4`) cuelgan del andén como `parent_station` y sí son nodos. Sin esa cadena
+hay que inventarse una arista; aquí no se inventa ninguna, porque los 286 andenes de metro
+tienen zona de embarque.
+
+De paso, el feed corrige dos cosas que uno da por sentadas: **Metro de Santiago no es todo
+subterráneo** (19 andenes van en viaducto — hasta el nivel +3 en L5 poniente — y 5 están
+a nivel de calle), y **la accesibilidad no es una etiqueta binaria**: las 126 estaciones
+tienen ascensor y 283 de 286 andenes se declaran accesibles, pero sólo **166 de los 298
+accesos** de calle lo son. La estación puede ser practicable por una boca y no por la de
+al lado, así que el panel publica las dos cifras.
+
+<details>
+<summary><b>Qué cambió de verdad al validar contra un feed de producción</b></summary>
+
+<br>
+
+El camino GTFS nunca se había ejecutado contra un feed real. Hacerlo destapó cuatro bugs,
+todos de la misma familia — código que degradaba en silencio en vez de fallar:
+
+| | |
+|---|---|
+| **Las frecuencias salían del dataset de ejemplo** | Los viajes de metro van con horario explícito en `stop_times.txt`; **ni uno solo de los 10.438 viajes de L1–L6 aparece en `frequencies.txt`**. `bandsFor()` devolvía vacío y el build caía al ejemplo — justo en la magnitud que define al proyecto — mientras se etiquetaba `meta.source: "gtfs"`. Ahora se derivan de las salidas reales. |
+| **Se inventaba Ruta Expresa en L1, L3 y L6** | El heurístico tomaba la 2ª y 3ª firma de paradas más larga como Roja/Verde. Un feed real trae muchas firmas por línea y casi todas son servicios cortos: L1 tiene 6, L3 tiene 15, L6 tiene 7, y **ninguna salta una sola estación interior**. Ruta Expresa = mismos terminales + salta interiores; ahora coincide con la realidad (solo L2, L4 y L5). |
+| **Las frecuencias de día hábil salían a la mitad** | El metro programa `LJ` (lun–jue) y `V` (viernes) como calendarios separados, ambos de tipo `wd`. Sumarlos dejaba L1 en 1 min de punta en vez de ~2. |
+| **Seis estaciones muy céntricas se caían del diagrama** | El vocabulario de ids del proyecto es anterior al feed y abrevia (`u-de-chile` vs `universidad-de-chile`). Se estaban colocando por interpolación. |
+
+Las coordenadas del dataset de ejemplo resultaron estar desviadas una **mediana de 636 m**
+y hasta **4,1 km** (Pudahuel) — no los ±300 m que se decían. `tests/units.test.js` medía
+esa desviación en vez de la proyección; ahora compara contra el `ll` de cada estación, y
+el error real de la proyección es de **0,01–0,58 %**.
+
+</details>
 
 ## Deploy
 
