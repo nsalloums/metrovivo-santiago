@@ -5,7 +5,7 @@ import './styles.css';
 import * as THREE from 'three';
 import data from '../data/network.json';
 import { SantiagoClock } from './time.js';
-import { NetworkLayer } from './network.js';
+import { NetworkLayer, RELIEVE_REAL } from './network.js';
 import { TrainLayer } from './trains.js';
 import { ContextLayer } from './context.js';
 import { Simulation } from './sim.js';
@@ -107,8 +107,10 @@ function enterCab(train) {
     v: 0, duration: 1.2, ease: 'power2.in',
     onUpdate: () => {
       context.setFade(cabFade.v);
-      // angostar las cintas a piso de túnel real (~6 m) y atenuarlas
+      // angostar las cintas a piso de túnel real (~6 m) y atenuarlas; el
+      // relieve pasa de maqueta (×26) a metros de verdad por la misma razón
       network.widthScale = 0.055 + 0.945 * cabFade.v;
+      network.relieve = RELIEVE_REAL + (1 - RELIEVE_REAL) * cabFade.v;
       network.setGlobalDim(0.3 + 0.7 * cabFade.v);
       network.setMorph(0);
     },
@@ -127,6 +129,7 @@ cab.onExit = () => {
     onUpdate: () => {
       context.setFade(cabFade.v);
       network.widthScale = 0.055 + 0.945 * cabFade.v;
+      network.relieve = RELIEVE_REAL + (1 - RELIEVE_REAL) * cabFade.v;
       network.setGlobalDim(0.3 + 0.7 * cabFade.v);
       network.setMorph(0);
     },

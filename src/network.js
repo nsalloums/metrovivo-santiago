@@ -14,6 +14,30 @@ const BASE_Y = 24;      // elevación base de las líneas (m)
 const LAYER_STEP = 11;  // separación vertical entre líneas (anti z-fight)
 const STATION_Y = 120;
 
+// ── Relieve vertical: la red NO es plana ──────────────────────────────────
+//
+// levels.txt da el nivel de cada andén (0 = calle). Es un ORDEN medido, no una
+// profundidad: los −5 de U. de Chile L3 son cinco plantas, no cinco metros.
+// Intenté derivar los metros de verdad sumando stair_count × huella por la
+// cadena de escaleras, y no se puede: las transiciones de las estaciones
+// profundas van servidas sólo por mecánicas y ascensores, que no declaran
+// peldaños, así que la cadena se corta justo donde importaría.
+//
+// Así que la altura que se dibuja es ORDEN DE NIVEL × una constante, igual que
+// las cintas de 110 m de ancho son vía de 6 m: maqueta legible desde la
+// órbita. La constante no es inventada — 4,2 m es la mediana medida de 291
+// saltos de un nivel con peldaños contados en el feed — pero va multiplicada
+// por EXAGERACION para que un desnivel de cinco plantas se vea en una red de
+// 20 km. El orden es dato; la separación, escala de maqueta.
+const NIVEL_M = 4.2;        // m por nivel (mediana medida de 291 escaleras)
+const EXAGERACION = 26;     // ×: sin esto, 5 plantas son 21 m sobre 20 km
+const NIVEL_Y = NIVEL_M * EXAGERACION;
+
+// En cabina la exageración deja de valer: a ×26 el túnel bajaría al 11 % de
+// pendiente sostenida y ningún metro pasa del 4 %. Dentro del tren se usan los
+// metros de verdad, igual que las cintas se angostan a ancho de vía.
+export const RELIEVE_REAL = 1 / EXAGERACION;
+
 export class NetworkLayer {
   constructor(scene, data) {
     this.data = data;
@@ -21,6 +45,7 @@ export class NetworkLayer {
     scene.add(this.group);
     this.morph = 0; // 0 = geografía, 1 = diagrama
     this.widthScale = 1; // la cabina angosta las cintas a escala de vía
+    this.relieve = 1;    // 0 = red plana (como era), 1 = niveles reales
     this.lines = new Map();
     this.active = new Map(); // lineId → bool (filtro)
 
@@ -67,17 +92,51 @@ export class NetworkLayer {
     mesh.renderOrder = 1 + idx;
     this.group.add(mesh);
 
+    const geoCum = cum(geo);
     this.lines.set(line.id, {
       def: line,
       N,
       geoPts: geo, schemPts: schem,
-      geoCum: cum(geo), schemCum: cum(schem),
+      geoCum, schemCum: cum(schem),
       blended: new Float32Array(N * 2),
       mesh,
       y: BASE_Y + idx * LAYER_STEP,
+      // relieve: cota extra de cada muestra según el nivel de sus estaciones
+      dy: this._perfilVertical(line, geoCum, N),
       color: new THREE.Color(line.color),
     });
     this.active.set(line.id, true);
+  }
+
+  /**
+   * Cota extra (m) de cada muestra del trazado, interpolando entre el nivel de
+   * una estación y el de la siguiente.
+   *
+   * La rampa entre dos estaciones es lineal porque el feed no dice cómo baja
+   * la vía en medio: sabemos a qué nivel están los andenes, no el perfil del
+   * túnel. Interpolar es la lectura más pobre posible de ese dato, que es
+   * justamente la que no añade nada que no esté medido.
+   */
+  _perfilVertical(line, geoCum, N) {
+    const dy = new Float32Array(N);
+    const nivel = line.stations.map((id) => {
+      const p = this.data.stations[id]?.in?.prof;
+      return p && p[line.id] !== undefined ? p[line.id] : null;
+    });
+    if (!nivel.some((n) => n !== null)) return dy; // el feed no trae niveles
+    // huecos: una estación sin nivel hereda el de la vecina conocida
+    for (let i = 0; i < nivel.length; i++) if (nivel[i] === null) nivel[i] = 0;
+
+    const sS = line.stationS;
+    let k = 0;
+    for (let i = 0; i < N; i++) {
+      const s = geoCum[i];
+      while (k < sS.length - 2 && s > sS[k + 1]) k++;
+      const a = sS[k], b = sS[k + 1] ?? a;
+      const t = b > a ? Math.min(1, Math.max(0, (s - a) / (b - a))) : 0;
+      dy[i] = (nivel[k] + ((nivel[k + 1] ?? nivel[k]) - nivel[k]) * t) * NIVEL_Y;
+    }
+    return dy;
   }
 
   _buildStations() {
@@ -101,6 +160,12 @@ export class NetworkLayer {
 
     this.group.add(this.rings, this.dots);
     this._stationScale = ids.map((id) => (isXfer(id) ? 1.5 : 1));
+    // cota de cada estación: su andén MENOS profundo (el más cercano a la calle)
+    this._stationDy = ids.map((id) => {
+      const p = this.data.stations[id]?.in?.prof;
+      const niveles = p ? Object.values(p) : [];
+      return niveles.length ? Math.max(...niveles) * NIVEL_Y : 0;
+    });
     this._stationPos = new Map(); // id → Vector3 (posición actual blendeada)
     ids.forEach((id) => this._stationPos.set(id, new THREE.Vector3()));
   }
@@ -110,13 +175,15 @@ export class NetworkLayer {
     this.morph = m;
     const halfW = RIBBON_W * this.widthScale * 0.5;
     const mtx = _mtx; // preasignada: setMorph corre por frame durante el morph
+    // el relieve es geografía: el diagrama esquemático es plano por definición
+    const relieve = (1 - m) * this.relieve;
     for (const L of this.lines.values()) {
-      const { N, geoPts, schemPts, blended } = L;
+      const { N, geoPts, schemPts, blended, dy } = L;
       for (let i = 0; i < N * 2; i++) blended[i] = geoPts[i] + (schemPts[i] - geoPts[i]) * m;
       const pos = L.mesh.geometry.attributes.position.array;
-      const y = L.y;
       for (let i = 0; i < N; i++) {
         const x = blended[i * 2], z = blended[i * 2 + 1];
+        const y = L.y + dy[i] * relieve;
         const iP = Math.max(0, i - 1) * 2, iN = Math.min(N - 1, i + 1) * 2;
         let dx = blended[iN] - blended[iP], dz = blended[iN + 1] - blended[iP + 1];
         const len = Math.hypot(dx, dz) || 1e-9;
@@ -135,14 +202,17 @@ export class NetworkLayer {
       const st = this.data.stations[id];
       const x = st.geo[0] + (st.schem[0] - st.geo[0]) * m;
       const z = -(st.geo[1] + (st.schem[1] - st.geo[1]) * m);
-      this._stationPos.get(id).set(x, STATION_Y, z);
+      // la estación se posa sobre su andén más alto: en una combinación de dos
+      // niveles el disco marca por dónde se entra, no el fondo del pozo
+      const y = STATION_Y + this._stationDy[i] * relieve;
+      this._stationPos.get(id).set(x, y, z);
       const s = this._stationScale[i];
-      mtx.makeScale(s, 1, s).setPosition(x, STATION_Y, z);
+      mtx.makeScale(s, 1, s).setPosition(x, y, z);
       this.dots.setMatrixAt(i, mtx);
     });
     this.xferIds.forEach((id, i) => {
       const p = this._stationPos.get(id);
-      mtx.makeScale(1, 1, 1).setPosition(p.x, STATION_Y - 20, p.z);
+      mtx.makeScale(1, 1, 1).setPosition(p.x, p.y - 20, p.z);
       this.rings.setMatrixAt(i, mtx);
     });
     this.dots.instanceMatrix.needsUpdate = true;
@@ -163,7 +233,8 @@ export class NetworkLayer {
     const sx = sampleArc(L.schemPts, L.schemCum, sSchem, _pB);
     out.set(
       gx[0] + (sx[0] - gx[0]) * m,
-      L.y,
+      // el tren va sobre la vía, y la vía sube y baja con el nivel del andén
+      L.y + this.alturaEn(lineId, sGeo),
       gx[1] + (sx[1] - gx[1]) * m,
     );
     if (outDir) {
@@ -178,6 +249,29 @@ export class NetworkLayer {
       outDir.normalize();
     }
     return out;
+  }
+
+  /**
+   * Cota extra (m) de una línea a un arco geográfico dado, ya atenuada por el
+   * morph. Es la misma curva que dibujan las cintas, así que un tren muestreado
+   * aquí va exactamente sobre su vía y no flotando ni enterrado.
+   */
+  alturaEn(lineId, sGeo) {
+    const L = this.lines.get(lineId);
+    if (!L || !L.dy) return 0;
+    const relieve = (1 - this.morph) * this.relieve;
+    if (!relieve) return 0;
+    const { geoCum, dy, N } = L;
+    const s = Math.max(0, Math.min(geoCum[N - 1], sGeo));
+    let lo = 0, hi = N - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (geoCum[mid] < s) lo = mid + 1; else hi = mid;
+    }
+    const i = Math.max(1, lo);
+    const seg = geoCum[i] - geoCum[i - 1] || 1e-9;
+    const t = (s - geoCum[i - 1]) / seg;
+    return (dy[i - 1] + (dy[i] - dy[i - 1]) * t) * relieve;
   }
 
   stationPosition(id) { return this._stationPos.get(id); }

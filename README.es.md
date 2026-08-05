@@ -19,7 +19,8 @@
 
 ---
 
-Siete líneas, 126 estaciones, ~150 trenes en punta de la mañana. La posición de cada
+Siete líneas, 126 estaciones, 146 trenes en la punta de la mañana — y, si enciendes
+los buses, 5.700 más. La posición de cada
 tren es una **función determinista de la hora actual en `America/Santiago`** — derivada
 de las frecuencias publicadas y de un perfil de velocidad físico, no de una animación
 al azar. Haz click en cualquier tren y la cámara vuela hasta su cabina.
@@ -44,7 +45,7 @@ Y abres la URL que imprime Vite. Eso es todo: sin API keys, sin `.env`, sin serv
 que levantar.
 
 ```bash
-npm test      # 54 tests unitarios (Vitest)
+npm test      # 118 tests unitarios (Vitest)
 npm run build
 npm run smoke # 17 checks headless contra el build real (Playwright)
 ```
@@ -54,6 +55,8 @@ npm run smoke # 17 checks headless contra el build real (Playwright)
 | | |
 |---|---|
 | <img src="docs/cabina.png" alt="Vista de conductor dentro de un túnel iluminado en rojo, HUD con próxima estación Los Dominicos y 65 km/h" width="420"> | **Ir en la cabina.** Haces click en un tren y la cámara se acopla a su parabrisas. El túnel es procedural — anillos, luces de pared y durmientes pasan a un ritmo acorde a la velocidad simulada. El HUD muestra la próxima estación, cuenta regresiva y la velocidad del perfil físico. |
+| 🚌 | **Subirte a un bus.** En modo BUSES, un clic sobre cualquier bus del itinerario te mete en su cabina: calzada, soleras, eje segmentado y luminarias a escala real, y cada paradero con su nombre oficial en el letrero. Los buses medidos por GPS no se conducen — son una foto de hace 33 s y el movimiento intermedio habría que inventarlo. |
+| ⛰ | **Ver el relieve real de la red.** Las líneas ya no van planas: cada andén se dibuja a su nivel según `levels.txt`, así que el viaducto de L5 se eleva sobre la ciudad y L3 se hunde bajo Plaza de Armas. El orden de niveles es dato medido; la separación, escala de maqueta — y dentro de la cabina se retira para dejar los metros de verdad. |
 | <img src="docs/diagrama-2d.png" alt="La misma red transformada en diagrama esquemático con ángulos de 0, 45 y 90 grados" width="420"> | **Transformar geografía en el plano oficial.** Cada estación guarda dos posiciones: sus coordenadas reales y una esquemática a 0/45/90°. El cambio es un lerp vértice a vértice, así que las estaciones nunca se deslizan. |
 | <img src="docs/panel-led.png" alt="Pantalla de andén punto-matriz ámbar con los próximos cinco trenes en Baquedano" width="420"> | **Leer la pantalla de andén.** Un panel punto-matriz ámbar lista las próximas llegadas de cualquier estación, derivadas del mismo calendario de salidas que mueve a los trenes — por eso siempre coincide con lo que ves. |
 | <img src="docs/escenario-suspension.png" alt="Línea 1 atenuada en gris durante una suspensión simulada" width="420"> | **Romper la red a propósito.** `?estado=l1-suspendida` suspende una línea: no salen trenes nuevos, los que van en viaje frenan en su próxima estación y la línea se pinta gris. Otros escenarios cierran una estación o un tramo entero. |
@@ -67,7 +70,7 @@ para el overlay de debug.
 ```mermaid
 flowchart LR
   A["GTFS de dtpm.cl<br/><i>o dataset de ejemplo</i>"] --> B["scripts/build-data.js"]
-  B --> C["data/network.json<br/><i>93 KB</i>"]
+  B --> C["data/network.json<br/><i>110 KB</i>"]
   C --> D["Simulation<br/><i>f(hora, tipo de día)</i>"]
   D --> E["PositionProvider"]
   E --> F["Red · Trenes · Cabina · LED"]
@@ -196,7 +199,9 @@ cada terminal según la frecuencia vigente y pausan ~20 s por andén.
 | L5 | 30 | 150 s | 240 s | 32 | 42,7 min |
 | L6 | 10 | 240 s | 360 s | 10 | 20,3 min |
 
-Flota en toda la red: **148 trenes a las 08:00**, 96 al mediodía, 60 a las 22:00.
+Flota en toda la red: **146 trenes en el pico de las 07:40**, 144 a las 08:00, 110 al
+mediodía y 82 a las 22:00. En domingo o feriado son 68 al mediodía — ver
+[el tipo de día no es el día de la semana](#el-tipo-de-día-no-es-el-día-de-la-semana).
 
 </details>
 
@@ -282,13 +287,14 @@ Aprieta **BUSES** y la ciudad cambia de capa: las cintas del metro desaparecen (
 discos de estación quedan como referencia urbana) y aparece **toda la flota de RED**
 sobre la red oficial de recorridos. Dos fuentes, un interruptor:
 
-- **ITINERARIO** (por defecto) — ~3.500 buses ámbar en **movimiento continuo**, cada
+- **ITINERARIO** (por defecto) — 3.579 buses ámbar al mediodía y 5.708 en la punta de
+  las 08:00, en **movimiento continuo**, cada
   uno una función determinista de la hora oficial: salidas desde las ventanas de
   intervalo de `frequencies.txt`, posición interpolada entre las horas de paso por
   paradero de `stop_times.txt`. El perfil de velocidad entre paraderos sale del propio
   itinerario — el bus simulado mediano va a ~18 km/h, la velocidad comercial real. Es
   la misma clase de dato que los trenes de metrovivo: dónde DEBERÍA estar cada bus.
-- **GPS** — ~4.200 buses cian como **posiciones medidas**, una petición de ~100 KB por
+- **GPS** — ~5.000 buses cian como **posiciones medidas**, una petición de ~100 KB por
   minuto. Cada bus lleva su propia hora de medición y esa edad se dibuja en vez de
   taparse: lo fresco brilla cian, lo de hace cinco minutos se apaga a gris. Nada se
   anima entre mediciones — un salto honesto vale más que un deslizar inventado.
@@ -444,6 +450,19 @@ El puente entre ambas cosas no es obvio y vale la pena anotarlo: los andenes que
 (`location_type=4`) cuelgan del andén como `parent_station` y sí son nodos. Sin esa cadena
 hay que inventarse una arista; aquí no se inventa ninguna, porque los 286 andenes de metro
 tienen zona de embarque.
+
+**La red deja de ser plana.** `levels.txt` da el nivel de cada andén, así que las líneas
+ahora suben y bajan con él: el viaducto de L5 se eleva sobre la ciudad y L3 se hunde bajo
+Plaza de Armas. Lo medido es el **orden** de niveles, no los metros — intenté derivar la
+profundidad real sumando `stair_count × huella` por la cadena de escaleras y no se puede:
+las transiciones de las estaciones profundas van servidas sólo por mecánicas y ascensores,
+que no declaran peldaños, así que la cadena se corta justo donde importaría. La altura que
+se dibuja es orden de nivel × una constante, con el mismo criterio con que una cinta de
+110 m de ancho representa 6 m de vía. La constante sí es medida — 4,2 m es la mediana de
+291 saltos de un nivel con peldaños contados — pero va multiplicada ×26 para que cinco
+plantas se lean en una red de 20 km. Dentro de la cabina esa exageración se retira y se
+usan los metros de verdad: a ×26 el túnel bajaría al 11 % sostenido y ningún metro pasa
+del 4 %.
 
 De paso, el feed corrige dos cosas que uno da por sentadas: **Metro de Santiago no es todo
 subterráneo** (19 andenes van en viaducto — hasta el nivel +3 en L5 poniente — y 5 están

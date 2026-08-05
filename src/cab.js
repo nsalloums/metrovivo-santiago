@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import { gsap } from 'gsap';
 import { dur, REDUCED_MOTION } from './motion.js';
+import { RELIEVE_REAL } from './network.js';
 
 const FRONT = 70;         // m: parabrisas en la trompa del tren real (140/2)
 const LOOK_AHEAD = 55;    // m: punto de mira sobre la curva
@@ -294,7 +295,10 @@ export class CabView {
       { off: -2.78, w: 0.07, y: 3.5, c: 0x2a2a32 },
     ];
     for (const sp of specs) {
-      this.trackGroup.add(offsetRibbon(L.geoPts, L.N, L.y, sp.off, sp.w, sp.y, sp.c));
+      // Los rieles siguen el relieve de la vía, no una cota plana: si no, en
+      // una bajada de dos niveles la cabina viaja por debajo de sus propios
+      // rieles. A escala REAL, que es la de este mundo — ver RELIEVE_REAL.
+      this.trackGroup.add(offsetRibbon(L.geoPts, L.N, L.y, sp.off, sp.w, sp.y, sp.c, L.dy, RELIEVE_REAL));
     }
   }
 
@@ -382,8 +386,12 @@ export class CabView {
   }
 }
 
-/** Cinta paralela al trazado, desplazada lateralmente (rieles, cables). */
-function offsetRibbon(pts, N, baseY, offset, width, dy, color) {
+/**
+ * Cinta paralela al trazado, desplazada lateralmente (rieles, cables).
+ * `relieve` (opcional) es la cota por muestra de la vía: sin ella la cinta
+ * sería plana y se despegaría del trazado en cuanto la línea cambia de nivel.
+ */
+function offsetRibbon(pts, N, baseY, offset, width, dy, color, relieve = null, k = 1) {
   const pos = new Float32Array(N * 2 * 3);
   const idx = [];
   for (let i = 0; i < N; i++) {
@@ -395,7 +403,8 @@ function offsetRibbon(pts, N, baseY, offset, width, dy, color) {
     const px = -dz, pz = dx; // perpendicular (derecha de +s)
     const cx = x + px * offset, cz = z + pz * offset;
     const hw = width / 2;
-    pos.set([cx - px * hw, baseY + dy, cz - pz * hw, cx + px * hw, baseY + dy, cz + pz * hw], i * 6);
+    const y = baseY + dy + (relieve ? relieve[i] * k : 0);
+    pos.set([cx - px * hw, y, cz - pz * hw, cx + px * hw, y, cz + pz * hw], i * 6);
     if (i < N - 1) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
   }
   const g = new THREE.BufferGeometry();

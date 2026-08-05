@@ -19,7 +19,8 @@
 
 ---
 
-Seven lines, 126 stations, ~150 trains at morning rush hour. Every train's position
+Seven lines, 126 stations, 146 trains at the morning peak — and 5,700 more if you
+turn the buses on. Every train's position
 is a **deterministic function of the current time in `America/Santiago`** — derived
 from published headways and a physical speed profile, not from random animation.
 Click any train and the camera flies into its cab.
@@ -45,7 +46,7 @@ npm run dev
 Then open the URL Vite prints. That's it — no API keys, no `.env`, no services to run.
 
 ```bash
-npm test     # 54 unit tests (Vitest)
+npm test     # 118 unit tests (Vitest)
 npm run build
 npm run smoke # 17 headless checks against the real build (Playwright)
 ```
@@ -55,6 +56,8 @@ npm run smoke # 17 headless checks against the real build (Playwright)
 | | |
 |---|---|
 | <img src="docs/cabina.png" alt="Driver's cab view inside a red-lit tunnel, HUD showing next station Los Dominicos and 65 km/h" width="420"> | **Ride in the cab.** Click a train and the camera docks to its front window. The tunnel is generated procedurally — rings, wall lights and sleepers stream past at a rate matched to the simulated speed. The HUD shows the next station, a live countdown and the speed from the physical profile. |
+| 🚌 | **Ride a bus.** In BUSES mode, one click on any timetable bus puts you in its cab: roadway, kerbs, a dashed centre line and street lights at real scale, and every stop signed with its official name. GPS-measured buses cannot be driven — they are a 33-second-old photograph, and the motion in between would have to be invented. |
+| ⛰ | **See the network's real relief.** The lines are no longer flat: each platform is drawn at its floor from `levels.txt`, so the L5 viaduct climbs above the city and L3 dives under Plaza de Armas. The order of floors is measured data; the spacing is model scale — and inside the cab it is dropped for the real metres. |
 | <img src="docs/diagrama-2d.png" alt="The same network morphed into a schematic diagram with 0/45/90 degree angles" width="420"> | **Morph geography into the official diagram.** Every station stores two positions — its real coordinates and a schematic one at 0/45/90°. The switch is a vertex-to-vertex lerp, so stations never slide. |
 | <img src="docs/panel-led.png" alt="Amber dot-matrix platform display listing the next five trains at Baquedano" width="420"> | **Read the platform display.** An amber dot-matrix panel lists the next arrivals for any station, derived from the same departure schedule that drives the trains — so it always agrees with what you see on screen. |
 | <img src="docs/escenario-suspension.png" alt="Line 1 greyed out across the network during a simulated suspension" width="420"> | **Break the network on purpose.** `?estado=l1-suspendida` suspends a line: no new departures, trains already en route brake at their next station, and the line goes grey. Other scenarios close a station or a whole segment. |
@@ -68,7 +71,7 @@ debug overlay.
 ```mermaid
 flowchart LR
   A["GTFS from dtpm.cl<br/><i>or bundled sample</i>"] --> B["scripts/build-data.js"]
-  B --> C["data/network.json<br/><i>93 KB</i>"]
+  B --> C["data/network.json<br/><i>110 KB</i>"]
   C --> D["Simulation<br/><i>f(time, day type)</i>"]
   D --> E["PositionProvider"]
   E --> F["Network · Trains · Cab · LED"]
@@ -196,7 +199,9 @@ according to the headway in force and dwell ~20 s per platform.
 | L5 | 30 | 150 s | 240 s | 32 | 42.7 min |
 | L6 | 10 | 240 s | 360 s | 10 | 20.3 min |
 
-Fleet across the network: **148 trains at 08:00**, 96 at midday, 60 at 22:00.
+Fleet across the network: **146 trains at the 07:40 peak**, 144 at 08:00, 110 at midday
+and 82 at 22:00. On a Sunday or a public holiday it is 68 at midday — see
+[the day type is not the day of the week](#the-day-type-is-not-the-day-of-the-week).
 
 </details>
 
@@ -282,13 +287,14 @@ Press **BUSES** and the city switches layers: the metro's ribbons disappear (sta
 dots stay as urban reference), and the **entire RED fleet** appears over the official
 route network. Two sources, one toggle:
 
-- **ITINERARIO** (default) — ~3,500 amber buses in **continuous motion**, each one a
+- **ITINERARIO** (default) — 3,579 amber buses at midday and 5,708 at the 08:00 peak,
+  in **continuous motion**, each one a
   deterministic function of the official time: departures from `frequencies.txt`
   headway windows, position interpolated between the per-stop passing times of
   `stop_times.txt`. The speed profile between stops comes from the timetable itself —
   the median simulated bus moves at ~18 km/h, the real commercial speed. This is the
   same epistemic class as metrovivo's trains: where each bus *should* be.
-- **GPS** — ~4,200 cyan buses as **measured positions**, one ~100 KB request per
+- **GPS** — ~5,000 cyan buses as **measured positions**, one ~100 KB request per
   minute. Each bus carries its own measurement timestamp and that age is drawn, not
   hidden: fresh glows cyan, five-minutes-old fades to grey. Nothing is animated between
   measurements — an honest jump is worth more than an invented glide.
@@ -405,9 +411,60 @@ data:
 2. It **aborts if `feed_end_date` has passed**. An expired feed keeps looking valid and
    silently contains stops that no longer exist.
 
-`data/network.json` (98 KB) holds sampled line curves, both positions per station, each
-station's source `lon/lat`, and headways by time band and day type. `data/bus/` holds
-the stop catalogue and route geometry — see [Buses](#buses).
+`data/network.json` (110 KB) holds sampled line curves, both positions per station, each
+station's source `lon/lat`, headways by time band and day type, the feed's calendar and
+the interior of every station. `data/bus/` holds the stop catalogue and route geometry —
+see [Buses](#buses).
+
+### The day type is not the day of the week
+
+`calendar_dates.txt` declares the feed's eight public holidays, and on every one of them
+the network runs a **Sunday timetable**. 18 September 2026 falls on a Friday: without that
+table metrovivo drew **110 trains and 3,579 buses** over a city that moves **68 trains and
+2,430 buses** that day. The clock consults the table before deciding the day type, and
+when it is a holiday the interface says so — otherwise a Friday running Sunday headways
+just looks like a broken simulator.
+
+`feed_info.txt` supplies the other half: how long these timetables are valid. `fetch-gtfs.mjs`
+already refuses to download an expired feed, but that does nothing for a site already
+published, whose data ages on its own. The validity window now travels inside
+`network.json` and the page says so once today's date falls outside it. An expired feed
+does not fail — it keeps producing perfectly believable trains.
+
+### The station from the inside
+
+`pathways.txt` is the walkable graph of each station — 7,388 segments with their declared
+traversal time — and `levels.txt` its floors. With them, **how long a transfer takes**
+stops being a guess: it is the sum of `traversal_time` along the shortest path from one
+line's platforms to the other's. All 17 interchanges in the network are measured, from
+**22 s at Los Héroes** (L1↔L2) to **2:41 at Plaza de Armas** (L3↔L5, with L3 four floors
+below the street).
+
+The bridge between the two is not obvious and is worth recording: the platforms the
+`stop_times` use (`LH_L1_V1`) **are not nodes of the graph**; the nodes are zones and
+equipment (`LH:ZP_04`, `LH:ESC01_BOT`). GTFS itself joins them — **boarding areas**
+(`location_type=4`) hang off the platform as `parent_station` and *are* nodes. Without
+that chain you have to invent an edge; none is invented here, because all 286 metro
+platforms have a boarding area.
+
+**The network is no longer flat.** `levels.txt` gives each platform's floor, so the lines
+now rise and dip with it: the L5 viaduct climbs above the city, L3 dives under Plaza de
+Armas. What is measured is the **order** of floors, not metres — I tried deriving real
+depth by summing `stair_count × riser` along the staircase chain and it does not work:
+the deep stations' transitions are served only by escalators and lifts, which declare no
+steps, so the chain breaks exactly where it would matter. So the drawn height is floor
+order × a constant, in the same spirit as ribbons 110 m wide standing for 6 m of track.
+The constant itself is measured — 4.2 m is the median of 291 single-floor staircases in
+the feed — but it is multiplied ×26 so that five floors read across a 20 km network.
+Inside the cab that exaggeration is dropped for the real metres: at ×26 the tunnel would
+descend at a sustained 11 % and no metro exceeds 4 %.
+
+Along the way the feed corrects two things one takes for granted: **Santiago's metro is
+not all underground** (19 platforms run on viaduct — up to floor +3 on western L5 — and 5
+sit at street level), and **accessibility is not a binary label**: all 126 stations have a
+lift and 283 of 286 platforms are declared accessible, but only **166 of the 298 street
+entrances** are. A station can be usable from one mouth and not from the one next door,
+so the panel publishes both figures.
 
 <details>
 <summary><b>What validating against a production feed actually changed</b></summary>
